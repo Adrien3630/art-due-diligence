@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { lock } from "@/lib/vault";
 
 // Navigation : accueil, les trois analyses, l'historique et les réglages.
 const TABS = [
@@ -73,14 +74,23 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Pied : promesse de confidentialité */}
+      {/* Pied : verrou + promesse de confidentialité */}
       <div className="mt-auto px-7 py-6 border-t border-line">
+        <button
+          onClick={() => {
+            lock();
+            window.location.reload();
+          }}
+          className="mb-3 flex items-center gap-2 text-[0.74rem] text-ink-soft underline-offset-2 hover:text-gold hover:underline"
+        >
+          <span aria-hidden>🔒</span> Verrouiller le coffre
+        </button>
         <div className="flex items-center gap-2 text-[0.7rem] text-ink-soft">
           <span
             className="inline-block h-1.5 w-1.5 rounded-full bg-risk-low"
             aria-hidden
           />
-          100 % local · aucun cloud
+          100 % local · chiffré · aucun cloud
         </div>
         <p className="mt-2 text-[0.66rem] leading-relaxed text-muted">
           Les données saisies ne quittent jamais cet ordinateur, hormis l'appel

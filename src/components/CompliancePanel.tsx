@@ -65,9 +65,13 @@ export function CompliancePanel<D extends Dossier>({
       "Dossier archivé dans l'historique local",
     );
     const finalDossier = { ...dossier, auditTrail: trail } as D;
-    saveDossier(finalDossier);
-    onChange(finalDossier);
-    setSaved(true);
+    try {
+      await saveDossier(finalDossier);
+      onChange(finalDossier);
+      setSaved(true);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Échec de l'archivage.");
+    }
   }
 
   async function copyTracfin() {

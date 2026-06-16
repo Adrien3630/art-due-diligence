@@ -41,14 +41,14 @@ export default function HistoriquePage() {
     setHistory(loadHistory());
   }, []);
 
-  function remove(id: string) {
-    deleteDossier(id);
+  async function remove(id: string) {
+    await deleteDossier(id);
     setHistory(loadHistory());
   }
 
-  function wipe() {
+  async function wipe() {
     if (!confirm("Effacer définitivement tout l'historique local ?")) return;
-    clearHistory();
+    await clearHistory();
     setHistory([]);
   }
 

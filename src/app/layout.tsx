@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
+import { VaultGate } from "@/components/VaultGate";
 
 // Serif élégante pour les titres — l'aura « galerie »
 const playfair = Playfair_Display({
@@ -34,11 +35,15 @@ export default function RootLayout({
       className={`${playfair.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full">
-        {/* Coquille applicative : barre latérale fixe + zone de travail */}
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <main className="flex-1 min-w-0">{children}</main>
-        </div>
+        {/* Le coffre chiffré garde la coquille : rien n'est rendu tant qu'il
+            n'est pas déverrouillé. */}
+        <VaultGate>
+          {/* Coquille applicative : barre latérale fixe + zone de travail */}
+          <div className="flex min-h-screen">
+            <Sidebar />
+            <main className="flex-1 min-w-0">{children}</main>
+          </div>
+        </VaultGate>
       </body>
     </html>
   );

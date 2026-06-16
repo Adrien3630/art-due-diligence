@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button, Card, Field, SectionTitle } from "@/components/ui";
 import { loadSettings, saveSettings } from "@/lib/storage";
+import { exportBlob, importBlob } from "@/lib/vault";
 import type { Settings } from "@/lib/types";
 
 const FOURNISSEURS: { value: Settings["fournisseur"]; label: string; note: string }[] = [
@@ -26,10 +27,45 @@ export default function ParametresPage() {
     setSaved(false);
   };
 
-  function persist() {
+  async function persist() {
     if (!settings) return;
-    saveSettings(settings);
-    setSaved(true);
+    try {
+      await saveSettings(settings);
+      setSaved(true);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Échec de l'enregistrement.");
+    }
+  }
+
+  function exporter() {
+    const blob = exportBlob();
+    if (!blob) {
+      alert("Aucun coffre à exporter.");
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0, 10);
+    const file = new Blob([blob], { type: "application/json" });
+    const url = URL.createObjectURL(file);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `provenance_sauvegarde_${stamp}.vault`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importer(file: File) {
+    const text = await file.text();
+    const pass = prompt("Phrase secrète de cette sauvegarde :");
+    if (!pass) return;
+    const ok = await importBlob(text, pass);
+    if (ok) {
+      alert("Sauvegarde importée. L'application va se recharger.");
+      window.location.reload();
+    } else {
+      alert("Import impossible : fichier ou phrase secrète invalide.");
+    }
   }
 
   return (
@@ -169,13 +205,45 @@ export default function ParametresPage() {
         </div>
       </Card>
 
+      <Card className="mb-6">
+        <SectionTitle eyebrow="Coffre chiffré">Sauvegarde & sécurité</SectionTitle>
+        <p className="-mt-3 mb-4 text-[0.78rem] leading-relaxed text-muted">
+          Vos données sont chiffrées (AES-GCM, clé dérivée de votre phrase secrète).
+          Exportez une sauvegarde chiffrée à conserver hors de cet ordinateur —
+          utile pour l'obligation de conservation (5 ans) et en cas de panne.
+          L'import remplace le coffre actuel.
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="ghost" onClick={exporter}>
+            Exporter une sauvegarde chiffrée
+          </Button>
+          <label className="cursor-pointer rounded-md border border-line-strong px-5 py-2.5 text-sm font-medium text-ink-soft transition-all hover:border-gold hover:text-ink">
+            Importer une sauvegarde
+            <input
+              type="file"
+              accept=".vault,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) importer(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+        <p className="mt-3 text-[0.7rem] leading-relaxed text-risk-mid">
+          ⚠︎ La sauvegarde reste chiffrée : sans la phrase secrète correspondante,
+          elle est illisible. Conservez la phrase séparément du fichier.
+        </p>
+      </Card>
+
       <Card>
         <SectionTitle eyebrow="Confidentialité">Zéro cloud</SectionTitle>
         <ul className="space-y-2 text-sm text-ink-soft">
           {[
             "Les identités, photos et rapports ne sont jamais envoyés sur un serveur tiers.",
             "Seul le nom des parties (screening) et le nom de l'artiste (marché, si activé) sont transmis à vos fournisseurs, avec vos propres clés.",
-            "L'historique réside dans le stockage local de cet appareil et peut être effacé à tout moment.",
+            "L'historique est chiffré (AES-GCM) dans le stockage local de cet appareil ; il se verrouille et peut être effacé à tout moment.",
             "Aucune télémétrie, aucun traceur, aucun compte requis.",
           ].map((t, i) => (
             <li key={i} className="flex gap-2">

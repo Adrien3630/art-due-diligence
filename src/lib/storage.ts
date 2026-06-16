@@ -1,71 +1,59 @@
 /*
-  Persistance 100 % locale.
-  Version web : localStorage. Version desktop (Tauri) : à remplacer par
-  un store chiffré / SQLite local (voir README, phase desktop).
-  Aucune écriture réseau ici, par conception.
+  Persistance 100 % locale, désormais CHIFFRÉE (voir lib/vault.ts).
+
+  Cette couche est une façade synchrone sur le cache mémoire du coffre :
+   • les lectures (loadSettings/loadHistory) renvoient le cache déchiffré ;
+   • les écritures re-chiffrent et persistent (asynchrone — peut lever
+     StorageFullError si le stockage est plein).
+
+  Tant que le coffre n'est pas déverrouillé, les lectures renvoient des valeurs
+  par défaut vides (l'écran VaultGate empêche d'y arriver dans l'UI réelle).
+
+  Aucune écriture réseau ici, par conception. Version desktop (Tauri) : le coffre
+  migrera vers un store natif chiffré, contrat identique.
 */
 
 import type { Dossier, Settings } from "./types";
+import {
+  DEFAULT_SETTINGS,
+  getContent,
+  persist,
+} from "./vault";
 
-const KEY_SETTINGS = "provenance.settings.v2";
-const KEY_HISTORY = "provenance.history.v3";
-
-const DEFAULT_SETTINGS: Settings = {
-  fournisseur: "sanctions_io",
-  apiKey: "",
-  nomGalerie: "",
-  signataire: "",
-  seuilVigilanceEur: 10000,
-  marcheFournisseur: "aucun",
-  marcheApiKey: "",
-  marcheEndpoint: "",
-};
-
-function canUseStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
-}
+export { DEFAULT_SETTINGS } from "./vault";
 
 export function loadSettings(): Settings {
-  if (!canUseStorage()) return DEFAULT_SETTINGS;
-  try {
-    const raw = window.localStorage.getItem(KEY_SETTINGS);
-    if (!raw) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) };
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
+  return getContent()?.settings ?? DEFAULT_SETTINGS;
 }
 
-export function saveSettings(settings: Settings): void {
-  if (!canUseStorage()) return;
-  window.localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings));
+export async function saveSettings(settings: Settings): Promise<void> {
+  const c = getContent();
+  if (!c) return;
+  c.settings = settings;
+  await persist();
 }
 
 export function loadHistory(): Dossier[] {
-  if (!canUseStorage()) return [];
-  try {
-    const raw = window.localStorage.getItem(KEY_HISTORY);
-    if (!raw) return [];
-    return JSON.parse(raw) as Dossier[];
-  } catch {
-    return [];
-  }
+  return getContent()?.history ?? [];
 }
 
-export function saveDossier(dossier: Dossier): void {
-  if (!canUseStorage()) return;
-  const history = loadHistory();
-  history.unshift(dossier);
-  window.localStorage.setItem(KEY_HISTORY, JSON.stringify(history));
+export async function saveDossier(dossier: Dossier): Promise<void> {
+  const c = getContent();
+  if (!c) return;
+  c.history.unshift(dossier);
+  await persist();
 }
 
-export function deleteDossier(id: string): void {
-  if (!canUseStorage()) return;
-  const history = loadHistory().filter((d) => d.id !== id);
-  window.localStorage.setItem(KEY_HISTORY, JSON.stringify(history));
+export async function deleteDossier(id: string): Promise<void> {
+  const c = getContent();
+  if (!c) return;
+  c.history = c.history.filter((d) => d.id !== id);
+  await persist();
 }
 
-export function clearHistory(): void {
-  if (!canUseStorage()) return;
-  window.localStorage.removeItem(KEY_HISTORY);
+export async function clearHistory(): Promise<void> {
+  const c = getContent();
+  if (!c) return;
+  c.history = [];
+  await persist();
 }
