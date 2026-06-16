@@ -223,6 +223,47 @@ export interface ArtworkAssessment {
   revueHumaineRequise: true;
 }
 
+/* ───────────────────────── Marché / cote (vérif externe optionnelle) ───────────────────────── */
+
+/**
+ * Statut d'une vérification de cote / comparables d'enchères.
+ *  • ok           : comparables obtenus auprès d'un fournisseur réel
+ *  • insufficient : fournisseur réel interrogé mais trop peu de données
+ *  • demo         : aucun fournisseur configuré — résultat illustratif NON probant
+ *  • error        : appel impossible (jamais maquillé en résultat favorable)
+ */
+export type MarketStatus = "ok" | "insufficient" | "demo" | "error";
+
+/** Un résultat d'enchère comparable, normalisé. */
+export interface MarketComparable {
+  titre: string;
+  date: string; // date de vente (ISO ou texte libre du fournisseur)
+  maison: string; // maison de vente
+  prixEur: number; // adjugé, normalisé en EUR par le fournisseur quand possible
+  source?: string; // référence / URL du lot
+}
+
+/** Résultat d'une interrogation de la cote d'un artiste. */
+export interface MarketResult {
+  artiste: string; // sujet interrogé (traçabilité)
+  status: MarketStatus;
+  comparables: MarketComparable[];
+  // Fourchette observée sur les comparables (EUR). null si indéterminable.
+  fourchetteEur: { min: number; max: number; mediane: number } | null;
+  fournisseur: string;
+  horodatage: string; // ISO
+  message?: string;
+}
+
+/** Verdict de cohérence d'un prix de transaction vis-à-vis du marché observé. */
+export interface PriceCoherence {
+  verdict: "coherent" | "eleve" | "bas" | "indetermine";
+  message: string;
+  // true → l'outil SUGGÈRE de cocher l'indicateur GAFI « prix incohérent ».
+  // C'est une aide : l'humain reste seul juge.
+  suggereDrapeau: boolean;
+}
+
 /* ───────────────────────── Conformité (audit & décision) ───────────────────────── */
 
 /** Type d'événement consigné dans la piste d'audit. */
@@ -313,6 +354,16 @@ export type Dossier = ActorDossier | ArtworkDossier | TransactionDossier;
 
 /* ───────────────────────── Réglages ───────────────────────── */
 
+/**
+ * Fournisseur de données de marché (cote / comparables d'enchères).
+ *  • aucun  : pas de vérif marché — l'indicateur prix reste à jugement humain.
+ *  • artnet : Artnet (API-first, abonnement payant). Endpoint à renseigner.
+ *  • custom : tout service REST respectant le contrat décrit dans api/market.
+ * Aucune valeur n'est codée en dur : on ne prétend pas connaître l'API privée
+ * d'un fournisseur — on fournit un connecteur générique « prêt à brancher ».
+ */
+export type MarketProvider = "aucun" | "artnet" | "custom";
+
 export interface Settings {
   fournisseur: "sanctions_io" | "opensanctions" | "custom";
   apiKey: string;
@@ -322,4 +373,8 @@ export interface Settings {
   // Paramétrable et À VALIDER PAR UN JURISTE — aucune valeur n'a de portée
   // juridique en soi.
   seuilVigilanceEur: number;
+  // Données de marché (optionnel, branchable le jour où un compte existe).
+  marcheFournisseur: MarketProvider;
+  marcheApiKey: string;
+  marcheEndpoint: string; // URL de base du fournisseur (requis si ≠ "aucun")
 }

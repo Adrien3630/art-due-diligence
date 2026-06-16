@@ -12,7 +12,13 @@
 import { Field, SectionTitle, SelectField } from "@/components/ui";
 import { AuditList } from "@/components/AuditList";
 import { ImageDropzone } from "@/components/ImageDropzone";
-import { registerDescription, withPrefilledUrls } from "@/lib/registers";
+import { MarketPanel } from "@/components/MarketPanel";
+import {
+  isPrefilled,
+  registerDescription,
+  registerSearchTerms,
+  withPrefilledUrls,
+} from "@/lib/registers";
 import { rebuildArtworkAudit } from "@/lib/scoring";
 import { readExifFromDataUrl } from "@/lib/exif";
 import type {
@@ -102,9 +108,11 @@ function ImageTools({ artwork }: { artwork: Artwork }) {
 
 function RegisterRow({
   check,
+  terms,
   onChange,
 }: {
   check: RegisterCheck;
+  terms: string;
   onChange: (c: RegisterCheck) => void;
 }) {
   const tone =
@@ -113,6 +121,7 @@ function RegisterRow({
       : check.resultat === "aucune"
         ? "text-risk-low"
         : "text-muted";
+  const prefilled = isPrefilled(check.id);
   return (
     <div className="border-b border-line py-3 last:border-0">
       <div className="flex items-start justify-between gap-4">
@@ -125,9 +134,21 @@ function RegisterRow({
           >
             {check.registre} ↗
           </a>
+          <span
+            className={`ml-2 rounded-full px-1.5 py-0.5 text-[0.6rem] ${
+              prefilled ? "bg-risk-low-bg text-risk-low" : "bg-surface-2 text-muted"
+            }`}
+          >
+            {prefilled ? "recherche pré-remplie" : "saisie manuelle"}
+          </span>
           <p className="mt-0.5 text-[0.7rem] leading-snug text-muted">
             {registerDescription(check.id)}
           </p>
+          {!prefilled && terms && (
+            <p className="mt-0.5 text-[0.7rem] text-ink-soft">
+              Rechercher : «&nbsp;{terms}&nbsp;»
+            </p>
+          )}
         </div>
         <div className="w-40 shrink-0">
           <select
@@ -157,13 +178,25 @@ function RegisterRow({
 export function ArtworkForm({
   artwork,
   onChange,
+  montantEur,
 }: {
   artwork: Artwork;
   onChange: (a: Artwork) => void;
+  // Présent en contexte transaction : alimente le verdict de cohérence du prix.
+  montantEur?: number | null;
 }) {
   const set = (patch: Partial<Artwork>) => onChange({ ...artwork, ...patch });
 
+  // Reporte le signal « prix incohérent » dans l'indicateur GAFI correspondant.
+  const flagPrix = () =>
+    set({
+      redFlags: artwork.redFlags.map((a) =>
+        a.id === "rf_prix" ? { ...a, reponse: a.flagValue } : a,
+      ),
+    });
+
   const checks = withPrefilledUrls(artwork.registres, artwork);
+  const terms = registerSearchTerms(artwork);
   const setCheck = (next: RegisterCheck) =>
     set({ registres: artwork.registres.map((c) => (c.id === next.id ? next : c)) });
 
@@ -294,13 +327,13 @@ export function ArtworkForm({
           <div>
             <div className="label-eyebrow mb-1 text-gold">Œuvres volées</div>
             {vol.map((c) => (
-              <RegisterRow key={c.id} check={c} onChange={setCheck} />
+              <RegisterRow key={c.id} check={c} terms={terms} onChange={setCheck} />
             ))}
           </div>
           <div>
             <div className="label-eyebrow mb-1 text-gold">Spoliations (1933-1945)</div>
             {spoliation.map((c) => (
-              <RegisterRow key={c.id} check={c} onChange={setCheck} />
+              <RegisterRow key={c.id} check={c} terms={terms} onChange={setCheck} />
             ))}
           </div>
         </div>
@@ -312,9 +345,19 @@ export function ArtworkForm({
         <AuditList answers={artwork.audit} onChange={(audit) => set({ audit })} />
       </div>
 
+      {/* Cote / marché */}
+      <div>
+        <SectionTitle eyebrow="Volet 5">Cote de l'artiste</SectionTitle>
+        <MarketPanel
+          artiste={artwork.artiste}
+          montantEur={montantEur}
+          onFlagPrix={flagPrix}
+        />
+      </div>
+
       {/* Indicateurs GAFI */}
       <div>
-        <SectionTitle eyebrow="Volet 5">Indicateurs de risque (GAFI)</SectionTitle>
+        <SectionTitle eyebrow="Volet 6">Indicateurs de risque (GAFI)</SectionTitle>
         <p className="-mt-3 mb-2 text-[0.72rem] leading-relaxed text-muted">
           Indicateurs des lignes directrices GAFI pour le marché de l'art. À ne cocher
           que si présents — laissés vides, ils n'alourdissent pas le score.

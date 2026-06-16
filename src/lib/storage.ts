@@ -16,6 +16,9 @@ const DEFAULT_SETTINGS: Settings = {
   nomGalerie: "",
   signataire: "",
   seuilVigilanceEur: 10000,
+  marcheFournisseur: "aucun",
+  marcheApiKey: "",
+  marcheEndpoint: "",
 };
 
 function canUseStorage(): boolean {

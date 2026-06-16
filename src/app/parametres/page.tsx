@@ -38,8 +38,9 @@ export default function ParametresPage() {
         <div className="label-eyebrow mb-1">Configuration locale</div>
         <h1 className="font-serif text-3xl text-ink">Paramètres</h1>
         <p className="mt-1 text-sm text-muted">
-          Tout est stocké sur cet ordinateur. Aucune valeur n'est transmise,
-          hormis la clé qui sert à interroger votre fournisseur de screening.
+          Tout est stocké sur cet ordinateur. Les seules sorties réseau sont
+          l'interrogation de votre fournisseur de screening (nom des parties) et,
+          si configuré, de votre fournisseur de marché (nom de l'artiste).
         </p>
       </header>
 
@@ -106,12 +107,74 @@ export default function ParametresPage() {
         </div>
       </Card>
 
+      <Card className="mb-6">
+        <SectionTitle eyebrow="Données de marché (optionnel)">
+          Cote & comparables d'enchères
+        </SectionTitle>
+        <p className="-mt-3 mb-4 text-[0.78rem] leading-relaxed text-muted">
+          Permet d'objectiver l'indicateur « prix incohérent » avec de vrais
+          comparables d'enchères. Les fournisseurs sérieux (Artnet, Artprice) sont
+          payants. Sans configuration, cette vérification reste en démonstration
+          (non probante) et l'indicateur prix s'apprécie manuellement.
+        </p>
+
+        <label className="block">
+          <span className="label-eyebrow block mb-1.5">Fournisseur</span>
+          <select
+            className="input-line"
+            value={settings.marcheFournisseur}
+            onChange={(e) =>
+              update({ marcheFournisseur: e.target.value as Settings["marcheFournisseur"] })
+            }
+          >
+            <option value="aucun">Aucun — indicateur prix à jugement humain</option>
+            <option value="artnet">Artnet (abonnement payant)</option>
+            <option value="custom">Autre service REST (contrat documenté)</option>
+          </select>
+        </label>
+
+        {settings.marcheFournisseur !== "aucun" && (
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field
+              label="URL de l'API"
+              value={settings.marcheEndpoint}
+              onChange={(e) => update({ marcheEndpoint: e.target.value })}
+              placeholder="https://api.fournisseur.com/auction-results"
+              hint="Endpoint REST renvoyant les résultats d'enchères (voir contrat dans api/market)."
+            />
+            <Field
+              label="Clé API marché"
+              type="password"
+              value={settings.marcheApiKey}
+              onChange={(e) => update({ marcheApiKey: e.target.value })}
+              placeholder="Collez votre clé ici"
+              hint="Conservée localement. Distincte de la clé de screening."
+            />
+          </div>
+        )}
+
+        <div className="mt-5 flex items-center gap-4">
+          <Button onClick={persist}>{saved ? "✓ Enregistré" : "Enregistrer"}</Button>
+          <span
+            className={`text-[0.72rem] ${
+              settings.marcheFournisseur !== "aucun" && settings.marcheApiKey
+                ? "text-risk-low"
+                : "text-risk-mid"
+            }`}
+          >
+            {settings.marcheFournisseur !== "aucun" && settings.marcheApiKey
+              ? "Fournisseur configuré — comparables réels actifs."
+              : "Aucun fournisseur — mode démonstration."}
+          </span>
+        </div>
+      </Card>
+
       <Card>
         <SectionTitle eyebrow="Confidentialité">Zéro cloud</SectionTitle>
         <ul className="space-y-2 text-sm text-ink-soft">
           {[
             "Les identités, photos et rapports ne sont jamais envoyés sur un serveur tiers.",
-            "Seul le nom des parties est transmis à votre fournisseur de screening, avec votre propre clé.",
+            "Seul le nom des parties (screening) et le nom de l'artiste (marché, si activé) sont transmis à vos fournisseurs, avec vos propres clés.",
             "L'historique réside dans le stockage local de cet appareil et peut être effacé à tout moment.",
             "Aucune télémétrie, aucun traceur, aucun compte requis.",
           ].map((t, i) => (

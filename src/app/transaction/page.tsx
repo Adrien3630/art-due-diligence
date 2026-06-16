@@ -129,13 +129,14 @@ export default function TransactionPage() {
   const canRun = acheteur.nom.trim().length > 0 && !idManquante;
   const hasKey = !!settings?.apiKey;
   const seuilEur = settings?.seuilVigilanceEur ?? 10000;
+  // Montant saisi → alimente le verdict de cohérence de prix dans l'œuvre.
+  const montantEur = montant.trim() ? Number(montant.replace(/[^\d.]/g, "")) : null;
 
   async function lancer() {
     if (!settings) return;
     setRunning(true);
     setResult(null);
     const cred: ScreeningCred = { fournisseur: settings.fournisseur, apiKey: settings.apiKey };
-    const montantEur = montant.trim() ? Number(montant.replace(/[^\d.]/g, "")) : null;
     const ctx = { seuilVigilanceEur: settings.seuilVigilanceEur, montantEur };
 
     const acheteurParty = await screenParty(acheteur, cred, ctx);
@@ -279,7 +280,7 @@ export default function TransactionPage() {
 
         <Card>
           <SectionTitle eyebrow="Volet œuvre">Œuvre</SectionTitle>
-          <ArtworkForm artwork={artwork} onChange={setArtwork} />
+          <ArtworkForm artwork={artwork} onChange={setArtwork} montantEur={montantEur} />
         </Card>
 
         <Card>
