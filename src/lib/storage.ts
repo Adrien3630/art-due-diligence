@@ -44,6 +44,14 @@ export async function saveDossier(dossier: Dossier): Promise<void> {
   await persist();
 }
 
+/** Remplace un dossier existant (même id) — utilisé par le re-screening. */
+export async function updateDossier(dossier: Dossier): Promise<void> {
+  const c = getContent();
+  if (!c) return;
+  c.history = c.history.map((d) => (d.id === dossier.id ? dossier : d));
+  await persist();
+}
+
 export async function deleteDossier(id: string): Promise<void> {
   const c = getContent();
   if (!c) return;

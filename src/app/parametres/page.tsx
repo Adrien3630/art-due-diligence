@@ -144,6 +144,30 @@ export default function ParametresPage() {
       </Card>
 
       <Card className="mb-6">
+        <SectionTitle eyebrow="Vigilance continue">Revue périodique</SectionTitle>
+        <p className="-mt-3 mb-4 text-[0.78rem] leading-relaxed text-muted">
+          Les listes de sanctions évoluent : un dossier doit être re-contrôlé
+          périodiquement. Au-delà de cet intervalle, il est signalé « à revoir »
+          dans l'historique (re-screening en un clic).
+        </p>
+        <div className="max-w-xs">
+          <Field
+            label="Intervalle de revue (mois)"
+            type="number"
+            inputMode="numeric"
+            value={String(settings.revueIntervalleMois)}
+            onChange={(e) =>
+              update({ revueIntervalleMois: Math.max(1, Number(e.target.value) || 1) })
+            }
+            hint="Indicatif, à valider par un juriste. Défaut : 12 mois."
+          />
+        </div>
+        <div className="mt-5">
+          <Button onClick={persist}>{saved ? "✓ Enregistré" : "Enregistrer"}</Button>
+        </div>
+      </Card>
+
+      <Card className="mb-6">
         <SectionTitle eyebrow="Données de marché (optionnel)">
           Cote & comparables d'enchères
         </SectionTitle>

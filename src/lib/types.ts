@@ -307,8 +307,11 @@ export type DossierKind = "acteur" | "oeuvre" | "transaction";
 
 interface DossierBase {
   id: string;
-  date: string; // ISO
+  date: string; // ISO (création)
   kind: DossierKind;
+  // Vigilance continue : date de la dernière revue / re-screening. Absent sur
+  // les anciens dossiers → on retombe sur `date`.
+  derniereRevue?: string; // ISO
   // Boucle de conformité : journal chaîné + décision humaine.
   auditTrail: AuditEvent[];
   decision: HumanDecision | null;
@@ -378,4 +381,7 @@ export interface Settings {
   marcheFournisseur: MarketProvider;
   marcheApiKey: string;
   marcheEndpoint: string; // URL de base du fournisseur (requis si ≠ "aucun")
+  // Vigilance continue : un dossier non revu depuis ce nombre de mois est
+  // signalé « à revoir ». Indicatif, À VALIDER PAR UN JURISTE.
+  revueIntervalleMois: number;
 }

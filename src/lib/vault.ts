@@ -41,6 +41,7 @@ export const DEFAULT_SETTINGS: Settings = {
   marcheFournisseur: "aucun",
   marcheApiKey: "",
   marcheEndpoint: "",
+  revueIntervalleMois: 12,
 };
 
 interface VaultBlob {

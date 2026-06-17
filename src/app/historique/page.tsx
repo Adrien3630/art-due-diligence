@@ -3,8 +3,19 @@
 import { useEffect, useState } from "react";
 import { Button, Card, RiskBadge } from "@/components/ui";
 import { downloadReport } from "@/components/ReportDocument";
-import { clearHistory, deleteDossier, loadHistory } from "@/lib/storage";
-import type { Dossier, RiskLevel } from "@/lib/types";
+import {
+  clearHistory,
+  deleteDossier,
+  loadHistory,
+  loadSettings,
+  updateDossier,
+} from "@/lib/storage";
+import {
+  isVigilanceApplicable,
+  rescreenDossier,
+  vigilanceDue,
+} from "@/lib/monitoring";
+import type { Dossier, RiskLevel, Settings } from "@/lib/types";
 
 const KIND_LABEL: Record<Dossier["kind"], string> = {
   acteur: "Acteur",
@@ -36,9 +47,13 @@ function summarize(d: Dossier): { sujet: string; niveau: RiskLevel } {
 
 export default function HistoriquePage() {
   const [history, setHistory] = useState<Dossier[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const now = new Date().toISOString();
 
   useEffect(() => {
     setHistory(loadHistory());
+    setSettings(loadSettings());
   }, []);
 
   async function remove(id: string) {
@@ -51,6 +66,35 @@ export default function HistoriquePage() {
     await clearHistory();
     setHistory([]);
   }
+
+  // Re-screening de vigilance continue : recontrôle le dossier, le ré-enregistre
+  // et signale tout changement de statut (les listes de sanctions évoluent).
+  async function rescreen(d: Dossier) {
+    if (!settings) return;
+    setBusyId(d.id);
+    try {
+      const out = await rescreenDossier(d, settings);
+      await updateDossier(out.dossier);
+      setHistory(loadHistory());
+      if (out.changements.length === 0) {
+        alert("Re-screening effectué : aucun changement de statut.");
+      } else {
+        alert(
+          `${out.aggrave ? "⚠️ Aggravation détectée" : "Changement détecté"} :\n\n` +
+            out.changements.join("\n") +
+            (out.aggrave
+              ? "\n\nRouvrez le dossier concerné pour traiter l'obligation (gel des avoirs / décision)."
+              : ""),
+        );
+      }
+    } catch {
+      alert("Re-screening impossible.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const intervalle = settings?.revueIntervalleMois ?? 12;
 
   return (
     <div className="mx-auto max-w-5xl px-10 py-10">
@@ -94,6 +138,8 @@ export default function HistoriquePage() {
           <ul>
             {history.map((d) => {
               const { sujet, niveau } = summarize(d);
+              const due = vigilanceDue(d, intervalle, now);
+              const applicable = isVigilanceApplicable(d);
               return (
                 <li
                   key={d.id}
@@ -109,9 +155,25 @@ export default function HistoriquePage() {
                       year: "numeric",
                     })}
                   </span>
-                  <span className="truncate text-sm text-ink">{sujet}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm text-ink">{sujet}</span>
+                    {due && (
+                      <span className="shrink-0 rounded-full bg-risk-mid-bg px-2 py-0.5 text-[0.6rem] font-medium text-risk-mid">
+                        À revoir
+                      </span>
+                    )}
+                  </span>
                   <div className="flex items-center gap-3 justify-self-end">
                     <RiskBadge niveau={niveau} size="sm" />
+                    {applicable && (
+                      <button
+                        onClick={() => rescreen(d)}
+                        disabled={busyId === d.id}
+                        className="text-[0.72rem] text-ink-soft underline-offset-2 hover:text-gold hover:underline disabled:opacity-40"
+                      >
+                        {busyId === d.id ? "…" : "Re-screener"}
+                      </button>
+                    )}
                     <button
                       onClick={() => downloadReport(d)}
                       className="text-[0.72rem] text-ink-soft underline-offset-2 hover:text-gold hover:underline"
