@@ -1,0 +1,181 @@
+# Barème de risque — document de validation juridique
+
+> **Objet.** Ce document expose **tous les choix chiffrés** du moteur de risque de
+> Provenance afin qu'un **juriste LCB-FT** puisse les valider, corriger ou rejeter.
+>
+> **Avertissement central (à lire avant tout).** Le logiciel distingue deux choses
+> de nature très différente :
+> - **(A) les OBLIGATIONS légales** qu'il cherche à outiller (identification,
+>   vigilance graduée, conservation, déclaration, gel…). Elles s'appuient sur des
+>   textes, cités ci-dessous — **à confirmer dans leur version en vigueur**.
+> - **(B) le BARÈME** : les **points, poids et seuils** (ex. « ≥ 6 points = risque
+>   élevé », « PPE = +4 »). Ces nombres **n'ont AUCUN fondement réglementaire**.
+>   Ce sont des **choix heuristiques** de l'éditeur pour ordonner la vigilance.
+>   Aucune loi n'impose « 6 points ». **Ils doivent être validés et calibrés.**
+>
+> Tant que la partie (B) n'est pas validée, l'outil est une **aide à la
+> structuration**, pas une garantie de conformité. Il ne remplace pas le jugement
+> du professionnel assujetti.
+
+Code de référence : [`src/lib/scoring.ts`](src/lib/scoring.ts),
+[`src/lib/jurisdictions.ts`](src/lib/jurisdictions.ts).
+Date de rédaction : 2026-06-17.
+
+---
+
+## A. Obligations légales outillées (à confirmer par le juriste)
+
+| # | Ce que fait l'outil | Source invoquée | À valider |
+|---|---|---|---|
+| A1 | Considère le marchand/galerie/intermédiaire d'art comme **assujetti** | Art. **L. 561-2, 10°** CMF | Périmètre exact des assujettis art |
+| A2 | Déclenche la vigilance au **seuil de 10 000 €** (transaction ou série liée) | Seuil art. marché de l'art ; param. `seuilVigilanceEur` | Montant, base de calcul (série liée ?) |
+| A3 | **Vigilance graduée** simplifiée / standard / renforcée | Art. **L. 561-9** (simplifiée) / **L. 561-10, L. 561-10-1** (renforcée, PPE) | Conditions exactes de déclenchement |
+| A4 | **Pays tiers à haut risque** → vigilance renforcée | Art. L. 561-10 ; listes UE / **GAFI** | Liste applicable + automatisme |
+| A5 | **Conservation 5 ans** des pièces après fin de relation | Art. **L. 561-12** CMF | Durée, point de départ, format |
+| A6 | **Déclaration de soupçon** à Tracfin (projet pré-rempli, jamais transmis) | Art. **L. 561-15** CMF | Contenu, canal ERMES |
+| A7 | **Gel des avoirs** sans délai + signalement DG Trésor sur hit sanction | Art. **L. 562-4** CMF | Procédure, registre national des gels |
+| A8 | Indicateurs de risque marché de l'art | **Rapport GAFI/FATF, 27 fév. 2023** (art & antiquités) | Correspondance indicateur ↔ question |
+
+> ⚠️ Le **snapshot des juridictions GAFI** ([`jurisdictions.ts`](src/lib/jurisdictions.ts))
+> est daté de **« février 2025 »** et **n'a pas de mécanisme de mise à jour**. Le GAFI
+> révise ses listes ~3×/an. **À actualiser à chaque plénière**, sinon l'outil
+> produit des réponses fausses sans le signaler.
+
+---
+
+## B. Le barème — choix chiffrés SANS fondement réglementaire
+
+### B0. Conversion points → niveau ([`levelFromPoints`](src/lib/scoring.ts))
+| Condition | Niveau | Base réglementaire |
+|---|---|---|
+| points ≥ 6 | Risque élevé | **aucune — choix éditeur** |
+| points ≥ 3 | Vigilance | **aucune — choix éditeur** |
+| sinon | Faible | **aucune — choix éditeur** |
+
+> Les frontières **3** et **6** sont arbitraires. Question au juriste : faut-il un
+> seuil de niveau « élevé » déclenché par certains facteurs **quels que soient les
+> points** (approche par seuils qualitatifs plutôt que somme) ?
+
+### B1. Sous-scores ACTEUR (`assessActor`)
+| Facteur | Points | Remarque / à valider |
+|---|---|---|
+| Correspondance **sanction** | **+100** (force « élevé ») | Doit-il être un **blocage absolu** distinct du score ? (voir gel des avoirs) |
+| **PPE** | +4 | Pondération arbitraire |
+| **Média négatif** (adverse media) | +2 | Arbitraire |
+| Screening en **erreur** | +2 | Arbitraire |
+| Juridiction **liste noire** GAFI | +5 | Arbitraire |
+| Juridiction **liste grise** GAFI | +3 | Arbitraire |
+| Entité **sans bénéficiaire effectif** déclaré | +3 | Arbitraire |
+| **Chaîne UBO incomplète** (entité intermédiaire opaque) | +3 | Arbitraire |
+| **Indice d'opacité** signalé par le galeriste | +3 | Arbitraire |
+| Données d'identification **incomplètes** | +1 | Arbitraire |
+
+### B2. Niveau de vigilance (tier) — logique de déclenchement
+- **Renforcée** si : sanction **ou** PPE **ou** juridiction liste noire **ou**
+  (liste grise **et** montant ≥ seuil) **ou** (montant ≥ seuil **et** opacité).
+- **Standard** si : montant ≥ seuil **ou** liste grise **ou** média **ou** opacité **ou** erreur.
+- **Simplifiée** sinon (→ **aucune pièce demandée**).
+
+> C'est le **cœur « approche par les risques »**. La structure est défendable, mais
+> les **combinaisons exactes** doivent être validées : p. ex. une PPE seule
+> suffit-elle à la vigilance renforcée indépendamment du montant ? Une juridiction
+> liste grise sans dépassement de seuil doit-elle rester en « standard » ?
+
+### B3. Pièces réclamées par tier
+| Tier | Pièces demandées | À valider |
+|---|---|---|
+| Simplifiée | **aucune** | Le « zéro pièce » est-il acceptable au regard de l'identification minimale ? |
+| Standard | Identité (pièce officielle / Kbis) | Suffisant ? |
+| Renforcée | + origine des fonds + doc UBO (entité) | Complet ? |
+
+### B4. Sous-scores ŒUVRE (`assessArtwork`)
+| Facteur | Points | À valider |
+|---|---|---|
+| Aucune provenance | +3 | Arbitraire |
+| Provenance d'un seul maillon | +2 | Arbitraire |
+| Maillon à source faible/absente | +1 **par maillon** | Arbitraire |
+| **Rupture > 30 ans** entre maillons | +2 | Le seuil **30 ans** est arbitraire |
+| Maillon **antérieur à la création** (incohérence) | +3 | Arbitraire |
+| Première apparition publique non documentée | +1 | Arbitraire |
+| Correspondance **registre spoliation** | +100 | Blocage à confirmer |
+| **Trou de provenance 1933-1945** (œuvre ≤ 1945) | +4 | Heuristique d'années (regex) — voir limite |
+| Registre spoliation **non vérifié** | +1 **par registre** | Arbitraire |
+| Correspondance **registre vol** | +100 | Blocage à confirmer |
+| Registre vol **non vérifié** | +1 par registre | Arbitraire |
+| Question d'authenticité/titre **non renseignée** | +1 | Le « non-renseigné = +1 » est un choix |
+| Question d'authenticité/titre **drapeau levé** | +poids (1 à 3) | Poids arbitraires |
+
+### B5. Indicateurs GAFI marché de l'art (`freshArtworkRedFlags`)
+Source revendiquée : rapport GAFI 2023. Poids attribués par l'éditeur :
+| Indicateur | Poids |
+|---|---|
+| Œuvre « fraîche au marché » sans historique | 2 |
+| Réticence à divulguer le précédent propriétaire | 3 |
+| Prix manifestement incohérent avec le marché | 2 |
+| Structure opaque / intermédiaire anonyme | 3 |
+| Œuvre réapparue après perte/vol puis radiation | 3 |
+
+> À valider : la **correspondance** entre chaque question et le rapport GAFI, et
+> les **poids**. La cohérence de prix peut être objectivée via le module marché
+> (`assessPriceCoherence` : > 1,5 × max = « élevé », < 0,5 × min = « bas » — **bornes
+> arbitraires**).
+
+### B6. Comportement TRANSACTION (`freshComportement` + `aggregateTransaction`)
+| Facteur | Poids |
+|---|---|
+| Espèces / crypto au-delà des seuils | 3 |
+| Paiement par un tiers non partie | 3 |
+| Urgence / discrétion / prix incohérent | 2 |
+
+Agrégation : niveau global = **pire** des niveaux (acheteur / vendeur / œuvre) ; le
+comportement peut **monter** le niveau (≥ 6 → élevé ; ≥ 3 → au moins vigilance),
+**jamais le baisser**. *Structure prudente, bornes arbitraires.*
+
+### B7. Indices acteur (`freshActorIndices`)
+| Indice | Poids |
+|---|---|
+| Structure-écran / mandat à bénéficiaire opaque | 3 |
+| Réticence inhabituelle à fournir des informations | 2 |
+
+### B8. Vigilance continue (`monitoring.ts`)
+- Intervalle de revue par défaut : **12 mois** (`revueIntervalleMois`, paramétrable).
+> Aucune base légale sur « 12 mois » : à fixer selon le risque. À valider.
+
+---
+
+## C. Limites techniques affectant la fiabilité (à signaler au juriste)
+
+1. **Extraction d'années par expression régulière** ([`extractYears`](src/lib/scoring.ts)) :
+   ne comprend pas « circa 1940 », « XIXᵉ siècle », « années 30 » → le contrôle
+   spoliation 1933-1945 et les ruptures peuvent passer à côté.
+2. **Screening sur le nom** principalement → faux positifs/négatifs (homonymes) ;
+   la désambiguïsation (date de naissance / nationalité) dépend du fournisseur.
+3. **Snapshot GAFI figé** (cf. supra) — pas d'actualisation automatique.
+4. Les **comparables de marché** ne sont pas archivés dans le dossier (l'humain
+   reporte sa conclusion via l'indicateur prix).
+
+---
+
+## D. Méthode de validation proposée
+
+1. **Revue ligne à ligne** des tableaux A et B par un juriste LCB-FT ; annoter
+   chaque ligne : *conforme / à corriger / sans objet*.
+2. **Distinguer** ce qui est une **obligation** (doit être respecté) de ce qui est
+   une **aide indicative** (peut être ajusté).
+3. **Calibrer** les poids/seuils de (B) — idéalement par rétro-test sur des cas
+   réels ou des typologies Tracfin/GAFI.
+4. **Documenter** la version validée et la **date**, et instaurer une **revue
+   périodique** (au moins à chaque évolution réglementaire et plénière GAFI).
+5. Acter par écrit que l'outil **n'engage pas** la conformité du professionnel,
+   qui reste seul responsable de sa décision.
+
+---
+
+### Sources consultées (2026-06-17)
+- Acteurs assujettis & seuil 10 000 € — [Fournol Avocat](https://www.fournol-avocat.fr/actualite/2023/11/27/les-acteurs-du-march-de-lart-assujettis-aux-obligations-en-matire-de-lbc-ft-en-france) ; [Village Justice](https://www.village-justice.com/articles/marchands-art-lcb,56173.html)
+- Guide d'application maisons de vente (juin 2025) — [Conseil des maisons de vente](https://conseilmaisonsdevente.fr/sites/default/files/documents/CMV_GUIDE-DAPPLICATION-DES-OBLIGATIONS-DE-LCB-FT-2025.pdf)
+- Rapport GAFI/FATF, *Money Laundering and Terrorist Financing in the Art and Antiquities Market*, 27 fév. 2023 — [FATF](https://www.fatf-gafi.org/en/publications/Methodsandtrends/Money-Laundering-Terrorist-Financing-Art-Antiquities-Market.html)
+- Gel des avoirs / registre national — [DG Trésor](https://gels-avoirs.dgtresor.gouv.fr/)
+
+> Les articles du Code monétaire et financier sont cités de mémoire à titre
+> indicatif et **doivent être vérifiés dans leur version en vigueur** (Légifrance).
