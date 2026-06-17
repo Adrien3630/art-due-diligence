@@ -81,6 +81,7 @@ export const AUDIT_LABEL: Record<AuditEventType, string> = {
   screening_resultat: "Résultat de screening",
   piece_ajoutee: "Pièce ajoutée",
   match_ecarte: "Correspondance écartée",
+  gel_avoirs_signale: "Gel des avoirs — notification préparée",
   decision_saisie: "Décision saisie",
   dossier_archive: "Dossier archivé",
 };

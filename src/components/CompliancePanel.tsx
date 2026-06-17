@@ -16,6 +16,13 @@ import { AuditTimeline } from "@/components/AuditTimeline";
 import { downloadReport } from "@/components/ReportDocument";
 import { appendEvent } from "@/lib/audit";
 import { buildTracfinDraft, downloadTracfin } from "@/lib/tracfin";
+import {
+  buildFreezeNotice,
+  downloadFreezeNotice,
+  hasFreezeObligation,
+  DGTRESOR_EMAIL,
+  REGISTRE_GELS_URL,
+} from "@/lib/freeze";
 import { saveDossier } from "@/lib/storage";
 import type { Dossier, HumanDecision, RiskLevel, Settings } from "@/lib/types";
 
@@ -39,6 +46,9 @@ export function CompliancePanel<D extends Dossier>({
   const [saved, setSaved] = useState(false);
   const [showTracfin, setShowTracfin] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showFreeze, setShowFreeze] = useState(false);
+  const [freezeCopied, setFreezeCopied] = useState(false);
+  const [freezeLogged, setFreezeLogged] = useState(false);
 
   const niveau = dossierNiveau(dossier);
   const isDeclaration = dossier.decision?.type === "declaration";
@@ -47,6 +57,38 @@ export function CompliancePanel<D extends Dossier>({
     () => buildTracfinDraft(dossier, settings),
     [dossier, settings],
   );
+
+  // Gel des avoirs : obligation distincte, déclenchée par une correspondance
+  // de sanction (faux positifs écartés exclus).
+  const freezeObligation = hasFreezeObligation(dossier);
+  const freezeNotice = useMemo(
+    () => buildFreezeNotice(dossier, settings),
+    [dossier, settings],
+  );
+
+  async function revealFreeze() {
+    const next = !showFreeze;
+    setShowFreeze(next);
+    if (next && !freezeLogged) {
+      setFreezeLogged(true);
+      const trail = await appendEvent(
+        dossier.auditTrail,
+        "gel_avoirs_signale",
+        "Projet de signalement de gel des avoirs préparé (à confirmer au registre national)",
+      );
+      onChange({ ...dossier, auditTrail: trail } as D);
+    }
+  }
+
+  async function copyFreeze() {
+    try {
+      await navigator.clipboard.writeText(`${freezeNotice.objet}\n\n${freezeNotice.corps}`);
+      setFreezeCopied(true);
+      setTimeout(() => setFreezeCopied(false), 2000);
+    } catch {
+      setFreezeCopied(false);
+    }
+  }
 
   async function onDecision(decision: HumanDecision) {
     const trail = await appendEvent(
@@ -89,6 +131,56 @@ export function CompliancePanel<D extends Dossier>({
   return (
     <div className="mt-6 border-t border-line pt-5">
       <SectionTitle eyebrow="Clôture">Décision & conformité</SectionTitle>
+
+      {freezeObligation && (
+        <div className="mb-5 rounded-md border-2 border-risk-high bg-risk-high-bg/60 p-4">
+          <p className="text-[0.82rem] font-medium text-risk-high">
+            ⛔ Correspondance de sanction — gel des avoirs possible
+          </p>
+          <p className="mt-1.5 text-[0.76rem] leading-relaxed text-ink-soft">
+            Un screening a renvoyé une correspondance de sanction. <strong>Vérifiez-la
+            d'abord dans le registre national des gels.</strong> Si elle est confirmée,
+            la mesure de gel est applicable <strong>sans délai</strong> (art. L. 562-4 du
+            Code monétaire et financier) : ne mettez aucun fonds à disposition, ne
+            finalisez pas l'opération, et signalez à la DG&nbsp;Trésor
+            ({DGTRESOR_EMAIL}). Cette obligation est distincte d'une déclaration Tracfin.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <a
+              href={REGISTRE_GELS_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-[0.78rem] font-medium text-risk-high underline-offset-2 hover:underline"
+            >
+              Vérifier dans le registre national des gels ↗
+            </a>
+            <Button variant="ghost" onClick={revealFreeze}>
+              {showFreeze ? "Masquer le signalement" : "Préparer le signalement DG Trésor"}
+            </Button>
+            {showFreeze && (
+              <>
+                <button
+                  onClick={copyFreeze}
+                  className="text-[0.78rem] text-ink-soft underline-offset-2 hover:text-gold hover:underline"
+                >
+                  {freezeCopied ? "✓ Copié" : "Copier"}
+                </button>
+                <button
+                  onClick={() => downloadFreezeNotice(freezeNotice, dossier)}
+                  className="text-[0.78rem] text-ink-soft underline-offset-2 hover:text-gold hover:underline"
+                >
+                  Télécharger (.txt)
+                </button>
+              </>
+            )}
+          </div>
+          {showFreeze && (
+            <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded-md border border-line bg-surface p-3 font-sans text-[0.74rem] leading-relaxed text-ink-soft">
+              {freezeNotice.corps}
+            </pre>
+          )}
+        </div>
+      )}
 
       <DecisionPanel
         decision={dossier.decision}

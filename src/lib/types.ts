@@ -273,6 +273,7 @@ export type AuditEventType =
   | "screening_resultat"
   | "piece_ajoutee"
   | "match_ecarte"
+  | "gel_avoirs_signale"
   | "decision_saisie"
   | "dossier_archive";
 
