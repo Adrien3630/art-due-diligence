@@ -37,8 +37,8 @@ export default function ParametresPage() {
     }
   }
 
-  function exporter() {
-    const blob = exportBlob();
+  async function exporter() {
+    const blob = await exportBlob();
     if (!blob) {
       alert("Aucun coffre à exporter.");
       return;

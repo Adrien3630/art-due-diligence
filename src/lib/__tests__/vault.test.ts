@@ -39,10 +39,10 @@ const fakeDossier = (id: string) =>
 
 describe("vault", () => {
   it("crée un coffre et le déverrouille immédiatement", async () => {
-    expect(hasVault()).toBe(false);
+    expect(await hasVault()).toBe(false);
     await createVault("phrase-secrète-longue");
     expect(isUnlocked()).toBe(true);
-    expect(hasVault()).toBe(true);
+    expect(await hasVault()).toBe(true);
     expect(getContent()?.history).toEqual([]);
   });
 
@@ -84,7 +84,7 @@ describe("vault", () => {
     await createVault("phrase-export");
     getContent()!.history.unshift(fakeDossier("xyz"));
     await persist();
-    const blob = exportBlob();
+    const blob = await exportBlob();
     expect(blob).toBeTruthy();
     // Le blob exporté ne contient pas l'id en clair (il est chiffré).
     expect(blob!).not.toContain("xyz");
@@ -97,7 +97,7 @@ describe("vault", () => {
   it("refuse un import avec une mauvaise phrase", async () => {
     await createVault("phrase-a");
     await persist();
-    const blob = exportBlob()!;
+    const blob = (await exportBlob())!;
     lock();
     expect(await importBlob(blob, "phrase-b")).toBe(false);
   });

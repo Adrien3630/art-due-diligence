@@ -33,10 +33,12 @@ export function VaultGate({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (isUnlocked()) setMode("ready");
-    else if (hasVault()) setMode("unlock");
-    else if (hasLegacyData()) setMode("migrate");
-    else setMode("create");
+    (async () => {
+      if (isUnlocked()) setMode("ready");
+      else if (await hasVault()) setMode("unlock");
+      else if (hasLegacyData()) setMode("migrate");
+      else setMode("create");
+    })();
   }, []);
 
   if (mode === "loading") return null;
