@@ -52,6 +52,19 @@ export async function updateDossier(dossier: Dossier): Promise<void> {
   await persist();
 }
 
+/**
+ * Enregistre un dossier : le remplace s'il existe déjà (réouverture), sinon
+ * l'ajoute en tête. Évite les doublons lors d'une ré-archive.
+ */
+export async function upsertDossier(dossier: Dossier): Promise<void> {
+  const c = getContent();
+  if (!c) return;
+  c.history = c.history.some((d) => d.id === dossier.id)
+    ? c.history.map((d) => (d.id === dossier.id ? dossier : d))
+    : [dossier, ...c.history];
+  await persist();
+}
+
 export async function deleteDossier(id: string): Promise<void> {
   const c = getContent();
   if (!c) return;

@@ -36,7 +36,8 @@ import {
 import { appendEvent, buildTrail } from "@/lib/audit";
 import { classifyMatches } from "@/lib/classify";
 import { emptyActor, emptyArtwork, newId } from "@/lib/factories";
-import { loadSettings } from "@/lib/storage";
+import { loadHistory, loadSettings } from "@/lib/storage";
+import { takeReopen } from "@/lib/reopen";
 import type {
   Actor,
   AuditAnswer,
@@ -121,7 +122,22 @@ export default function TransactionPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [result, setResult] = useState<TransactionDossier | null>(null);
 
-  useEffect(() => setSettings(loadSettings()), []);
+  useEffect(() => {
+    setSettings(loadSettings());
+    const id = takeReopen();
+    if (id) {
+      const d = loadHistory().find((x) => x.id === id);
+      if (d && d.kind === "transaction") {
+        setAcheteur(d.acheteur.actor);
+        setVendeur(d.vendeur?.actor ?? emptyActor("vendeur"));
+        setWithVendeur(!!d.vendeur);
+        setArtwork(d.oeuvre.artwork);
+        setComportement(d.comportement);
+        setMontant(d.montantEur != null ? String(d.montantEur) : "");
+        setResult(d);
+      }
+    }
+  }, []);
 
   // Pièce d'identité acheteur obligatoire si la case « > seuil » est cochée.
   const idManquante =

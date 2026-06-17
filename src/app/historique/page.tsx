@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button, Card, RiskBadge } from "@/components/ui";
 import { downloadReport } from "@/components/ReportDocument";
+import { routeForKind, setReopen } from "@/lib/reopen";
 import {
   clearHistory,
   deleteDossier,
@@ -46,10 +48,16 @@ function summarize(d: Dossier): { sujet: string; niveau: RiskLevel } {
 }
 
 export default function HistoriquePage() {
+  const router = useRouter();
   const [history, setHistory] = useState<Dossier[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const now = new Date().toISOString();
+
+  function open(d: Dossier) {
+    setReopen(d.id);
+    router.push(routeForKind(d.kind));
+  }
 
   useEffect(() => {
     setHistory(loadHistory());
@@ -165,6 +173,12 @@ export default function HistoriquePage() {
                   </span>
                   <div className="flex items-center gap-3 justify-self-end">
                     <RiskBadge niveau={niveau} size="sm" />
+                    <button
+                      onClick={() => open(d)}
+                      className="text-[0.72rem] font-medium text-gold underline-offset-2 hover:underline"
+                    >
+                      Ouvrir
+                    </button>
                     {applicable && (
                       <button
                         onClick={() => rescreen(d)}

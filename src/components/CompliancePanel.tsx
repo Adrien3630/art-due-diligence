@@ -23,7 +23,7 @@ import {
   DGTRESOR_EMAIL,
   REGISTRE_GELS_URL,
 } from "@/lib/freeze";
-import { saveDossier } from "@/lib/storage";
+import { upsertDossier } from "@/lib/storage";
 import type { Dossier, HumanDecision, RiskLevel, Settings } from "@/lib/types";
 
 function dossierNiveau(d: Dossier): RiskLevel {
@@ -108,7 +108,7 @@ export function CompliancePanel<D extends Dossier>({
     );
     const finalDossier = { ...dossier, auditTrail: trail } as D;
     try {
-      await saveDossier(finalDossier);
+      await upsertDossier(finalDossier);
       onChange(finalDossier);
       setSaved(true);
     } catch (err) {

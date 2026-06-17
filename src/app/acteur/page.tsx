@@ -20,7 +20,8 @@ import { assessActor } from "@/lib/scoring";
 import { appendEvent, buildTrail } from "@/lib/audit";
 import { classifyMatches } from "@/lib/classify";
 import { emptyActor, newId } from "@/lib/factories";
-import { loadSettings } from "@/lib/storage";
+import { loadHistory, loadSettings } from "@/lib/storage";
+import { takeReopen } from "@/lib/reopen";
 import type {
   Actor,
   ActorDossier,
@@ -35,7 +36,17 @@ export default function ActeurPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [result, setResult] = useState<ActorDossier | null>(null);
 
-  useEffect(() => setSettings(loadSettings()), []);
+  useEffect(() => {
+    setSettings(loadSettings());
+    const id = takeReopen();
+    if (id) {
+      const d = loadHistory().find((x) => x.id === id);
+      if (d && d.kind === "acteur") {
+        setActor(d.actor);
+        setResult(d);
+      }
+    }
+  }, []);
 
   const hasKey = !!settings?.apiKey;
   // Pièce d'identité obligatoire pour créer le dossier si la case acheteur est cochée.

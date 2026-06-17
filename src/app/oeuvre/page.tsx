@@ -12,7 +12,8 @@ import { CompliancePanel } from "@/components/CompliancePanel";
 import { assessArtwork } from "@/lib/scoring";
 import { buildTrail } from "@/lib/audit";
 import { emptyArtwork, newId } from "@/lib/factories";
-import { loadSettings } from "@/lib/storage";
+import { loadHistory, loadSettings } from "@/lib/storage";
+import { takeReopen } from "@/lib/reopen";
 import type { Artwork, ArtworkDossier, Settings } from "@/lib/types";
 
 export default function OeuvrePage() {
@@ -20,7 +21,17 @@ export default function OeuvrePage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [result, setResult] = useState<ArtworkDossier | null>(null);
 
-  useEffect(() => setSettings(loadSettings()), []);
+  useEffect(() => {
+    setSettings(loadSettings());
+    const id = takeReopen();
+    if (id) {
+      const d = loadHistory().find((x) => x.id === id);
+      if (d && d.kind === "oeuvre") {
+        setArtwork(d.artwork);
+        setResult(d);
+      }
+    }
+  }, []);
 
   const canRun = artwork.titre.trim().length > 0 || artwork.artiste.trim().length > 0;
 
