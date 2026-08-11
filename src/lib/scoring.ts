@@ -17,6 +17,7 @@ import {
   JURISDICTION_LABEL,
   type JurisdictionRisk,
 } from "./jurisdictions";
+import { overlapsWindow, yearBounds, type YearRange } from "./dates";
 import type {
   Actor,
   ActorAssessment,
@@ -515,31 +516,25 @@ export function rebuildArtworkAudit(
   }));
 }
 
-/** Années (4 chiffres) mentionnées dans une chaîne. */
-function extractYears(s: string): number[] {
-  return (s.match(/\b(1[5-9]\d{2}|20\d{2})\b/g) ?? []).map(Number);
-}
-
 /**
  * La chaîne de provenance couvre-t-elle la période 1933-1945 ?
  * Heuristique transparente : on regarde si un maillon documente une détention
- * recouvrant cette fenêtre. Sinon, drapeau spoliation.
+ * recouvrant cette fenêtre. Sinon, drapeau spoliation. Les dates floues
+ * (« vers 1941 », « milieu du XXe siècle », « années 40 ») sont interprétées
+ * par `dates.ts` de façon prudente pour ne pas rater le trou.
  */
 function couvrePeriodeSpoliation(artwork: Artwork): {
   pertinent: boolean;
   couvert: boolean;
 } {
-  const anneeCreation = extractYears(artwork.annee)[0];
+  // Année de création plausible la plus ancienne (borne basse).
+  const anneeCreation = yearBounds(artwork.annee)?.min;
   // Non pertinent si l'œuvre est manifestement créée après 1945.
   const pertinent = !anneeCreation || anneeCreation <= 1945;
   if (!pertinent) return { pertinent: false, couvert: true };
-  const couvert = artwork.provenance.some((p) => {
-    const ys = extractYears(`${p.periode} ${p.proprietaire}`);
-    if (!ys.length) return false;
-    const min = Math.min(...ys);
-    const max = ys.length > 1 ? Math.max(...ys) : min;
-    return min <= 1945 && max >= 1933;
-  });
+  const couvert = artwork.provenance.some((p) =>
+    overlapsWindow(`${p.periode} ${p.proprietaire}`, 1933, 1945),
+  );
   return { pertinent: true, couvert };
 }
 
@@ -575,11 +570,10 @@ export function assessArtwork(artwork: Artwork): ArtworkAssessment {
       points += faibles;
     }
 
-    // Bornes temporelles par maillon.
-    const spans = entries
-      .map((p) => extractYears(`${p.periode} ${p.proprietaire}`))
-      .filter((ys) => ys.length > 0)
-      .map((ys) => ({ min: Math.min(...ys), max: Math.max(...ys) }))
+    // Bornes temporelles par maillon (dates floues comprises).
+    const spans: YearRange[] = entries
+      .map((p) => yearBounds(`${p.periode} ${p.proprietaire}`))
+      .filter((b): b is YearRange => b !== null)
       .sort((a, b) => a.min - b.min);
 
     // Rupture temporelle (> 30 ans entre deux maillons consécutifs).
@@ -602,8 +596,8 @@ export function assessArtwork(artwork: Artwork): ArtworkAssessment {
     }
 
     // Incohérence : un maillon antérieur à la création de l'œuvre.
-    const creation = extractYears(artwork.annee)[0];
-    if (creation && spans.some((s) => s.min < creation)) {
+    const creationYear = yearBounds(artwork.annee)?.min;
+    if (creationYear && spans.some((s) => s.min < creationYear)) {
       facteurs.push("Incohérence : un maillon est daté avant la création de l'œuvre.");
       points += 3;
     }

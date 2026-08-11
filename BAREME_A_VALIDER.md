@@ -209,9 +209,12 @@ comportement peut **monter** le niveau (≥ 6 → élevé ; ≥ 3 → au moins v
 
 ## C. Limites techniques affectant la fiabilité (à signaler au juriste)
 
-1. **Extraction d'années par expression régulière** ([`extractYears`](src/lib/scoring.ts)) :
-   ne comprend pas « circa 1940 », « XIXᵉ siècle », « années 30 » → le contrôle
-   spoliation 1933-1945 et les ruptures peuvent passer à côté.
+1. **Interprétation des dates** ([`dates.ts`](src/lib/dates.ts)) — *amélioré* :
+   comprend désormais « vers 1941 », « années 40 », « XIXᵉ / XVIIᵉ siècle » et le
+   cadrage « début / milieu / fin de siècle », interprétés de façon **prudente**
+   (fenêtre large) pour ne pas rater le trou 1933-1945. Limite résiduelle : une
+   date en toutes lettres inhabituelle ou non française reste non reconnue (renvoie
+   « aucune borne », sans faux positif).
 2. **Screening sur le nom** principalement → faux positifs/négatifs (homonymes) ;
    la désambiguïsation (date de naissance / nationalité) dépend du fournisseur.
 3. **Snapshot GAFI figé** (cf. supra) — pas d'actualisation automatique.
