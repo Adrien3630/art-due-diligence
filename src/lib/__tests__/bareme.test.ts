@@ -335,8 +335,8 @@ describe("A2 / B8 — seuils paramétrables par défaut", () => {
 /* ───────────────── A4 — snapshot GAFI ───────────────── */
 
 describe("A4 — référentiel de juridictions (snapshot GAFI)", () => {
-  it("la date du snapshot correspond à celle du document (février 2025)", () => {
-    expect(GAFI_SNAPSHOT_DATE).toBe("février 2025");
+  it("la date du snapshot correspond à celle du document (juin 2026)", () => {
+    expect(GAFI_SNAPSHOT_DATE).toBe("juin 2026");
   });
   it("mapping du snapshot : Iran → noire, Monaco → grise, France → hors liste", () => {
     expect(assessJurisdiction("Iran")).toBe("high");

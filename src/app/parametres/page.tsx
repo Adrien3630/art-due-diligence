@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { Button, Card, Field, SectionTitle } from "@/components/ui";
 import { loadSettings, saveSettings } from "@/lib/storage";
 import { exportBlob, importBlob } from "@/lib/vault";
+import {
+  GAFI_SNAPSHOT_DATE,
+  gafiSnapshotAgeMonths,
+  isGafiSnapshotStale,
+} from "@/lib/jurisdictions";
 import type { Settings } from "@/lib/types";
 
 const FOURNISSEURS: { value: Settings["fournisseur"]; label: string; note: string }[] = [
@@ -15,9 +20,12 @@ const FOURNISSEURS: { value: Settings["fournisseur"]; label: string; note: strin
 export default function ParametresPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [saved, setSaved] = useState(false);
+  // Calculé au montage (client) pour éviter tout écart d'hydratation SSR.
+  const [gafi, setGafi] = useState<{ stale: boolean; ageMois: number } | null>(null);
 
   useEffect(() => {
     setSettings(loadSettings());
+    setGafi({ stale: isGafiSnapshotStale(), ageMois: gafiSnapshotAgeMonths() });
   }, []);
 
   if (!settings) return null;
@@ -164,6 +172,37 @@ export default function ParametresPage() {
         </div>
         <div className="mt-5">
           <Button onClick={persist}>{saved ? "✓ Enregistré" : "Enregistrer"}</Button>
+        </div>
+      </Card>
+
+      <Card className="mb-6">
+        <SectionTitle eyebrow="Référentiel pays">Listes GAFI (juridictions à risque)</SectionTitle>
+        <p className="-mt-3 mb-4 text-[0.78rem] leading-relaxed text-muted">
+          Le risque-pays est dérivé automatiquement des listes GAFI (grise /
+          noire). Ces listes sont figées dans l'outil et révisées par le GAFI à
+          chaque plénière (~février / juin / octobre) : elles doivent être
+          actualisées manuellement dans le code.
+        </p>
+        <div
+          className={`rounded-md border p-3 text-[0.78rem] leading-relaxed ${
+            gafi?.stale
+              ? "border-risk-high/40 bg-risk-high-bg text-risk-high"
+              : "border-risk-low/40 bg-risk-low-bg text-risk-low"
+          }`}
+        >
+          {gafi?.stale ? (
+            <>
+              ⚠︎ <strong>Snapshot périmé</strong> — dernière mise à jour :{" "}
+              {GAFI_SNAPSHOT_DATE} (il y a ~{gafi.ageMois} mois). Le GAFI a très
+              probablement révisé ses listes depuis. Résultats risque-pays à
+              vérifier manuellement et snapshot à actualiser.
+            </>
+          ) : (
+            <>
+              ✓ Snapshot à jour — dernière mise à jour : {GAFI_SNAPSHOT_DATE}
+              {gafi ? ` (il y a ~${gafi.ageMois} mois)` : ""}.
+            </>
+          )}
         </div>
       </Card>
 

@@ -52,19 +52,17 @@ seul à valider. Détail et URLs en **§ A′** ci-dessous.
 | A7 | **Gel des avoirs** sans délai + signalement DG Trésor sur hit sanction | Art. **L. 562-4** CMF | ✅ **Correct** — distinguer **L. 562-2** (décision de gel) de **L. 562-4** (application sans délai) ; registre DG Trésor confirmé |
 | A8 | Indicateurs de risque marché de l'art | **Rapport GAFI/FATF, 27 fév. 2023** (art & antiquités) | ✅ **Correct** — titre et date exacts ; c'est un **rapport de typologies**, non une norme contraignante |
 
-> ⚠️ **Le snapshot des juridictions GAFI est OBSOLÈTE.**
-> [`jurisdictions.ts`](src/lib/jurisdictions.ts) est figé à **« février 2025 »** et
-> n'a pas de mécanisme de mise à jour. La plénière GAFI la plus récente est celle
-> du **19 juin 2026** : la **liste grise** est passée de **25 à 22 juridictions**.
-> La **liste noire est inchangée** (Corée du Nord, Iran, Myanmar).
-> - **Sortis** (→ le code produit des **faux positifs**) : Croatie, Mali, Tanzanie,
->   Burkina Faso, Mozambique, **Nigéria**, **Afrique du Sud**, **Algérie**, Namibie.
-> - **Entrés** (→ le code produit des **faux négatifs**) : Bolivie, Îles Vierges
->   britanniques, Koweït, Papouasie-Nouvelle-Guinée, Bosnie-Herzégovine, Irak.
+> ✅ **Snapshot GAFI actualisé à la plénière du 19 juin 2026** (liste grise 25 → 22).
+> [`jurisdictions.ts`](src/lib/jurisdictions.ts) portait auparavant un snapshot
+> figé à « février 2025 » qui produisait des faux positifs (Nigéria, Afrique du
+> Sud, Algérie…) et des faux négatifs (Bolivie, Îles Vierges britanniques,
+> Koweït, Papouasie-Nouvelle-Guinée, Bosnie-Herzégovine, Irak). La **liste noire
+> reste inchangée** (Corée du Nord, Iran, Myanmar).
 >
-> **Correction du code non incluse ici** (relève du chantier « limites techniques ») :
-> actualiser [`jurisdictions.ts`](src/lib/jurisdictions.ts) + prévoir une revue à
-> chaque plénière (~février / juin / octobre).
+> Un **garde-fou de péremption** a été ajouté (`isGafiSnapshotStale`) : au-delà de
+> ~2 plénières (8 mois), l'app affiche un avertissement en Paramètres. **Reste
+> manuel** : actualiser la liste à chaque plénière (~février / juin / octobre) —
+> le garde-fou alerte, il ne met pas à jour tout seul.
 
 ---
 
@@ -103,8 +101,9 @@ seul à valider. Détail et URLs en **§ A′** ci-dessous.
    [L. 562-4](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000045250683)
 7. **A8** — préciser que le rapport GAFI 2023 est un **rapport de typologies**,
    pas une norme contraignante.
-8. **GAFI (urgent, code)** — remplacer le snapshot fév. 2025 par la plénière du
-   **19 juin 2026** (liste grise à 22 juridictions, cf. alerte ci-dessus).
+8. **GAFI (fait)** — snapshot actualisé à la plénière du **19 juin 2026** (liste
+   grise à 22 juridictions) + garde-fou de péremption ajouté (`isGafiSnapshotStale`,
+   alerte en Paramètres au-delà de ~8 mois). Reste à refaire à chaque plénière.
 
 ---
 
