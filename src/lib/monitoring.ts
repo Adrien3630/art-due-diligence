@@ -23,6 +23,7 @@ import { aggregateTransaction, assessActor } from "./scoring";
 import type {
   Actor,
   Dossier,
+  RiskLevel,
   ScreeningResult,
   ScreeningStatus,
   Settings,
@@ -58,6 +59,48 @@ export function vigilanceDue(
 ): boolean {
   if (!isVigilanceApplicable(d)) return false;
   return monthsBetween(lastReviewDate(d), nowIso) >= intervalleMois;
+}
+
+/* ── Priorisation (pur) ─────────────────────────────────────────────── */
+
+/** Niveau de risque d'un dossier, quel que soit son type. */
+function dossierRisk(d: Dossier): RiskLevel {
+  if (d.kind === "acteur" || d.kind === "oeuvre") return d.assessment.niveau;
+  if (d.kind === "transaction") return d.niveau;
+  return "faible";
+}
+
+const RISK_RANK: Record<RiskLevel, number> = { eleve: 3, vigilance: 2, faible: 1 };
+
+/**
+ * Dossiers à revoir, triés par priorité : risque le plus élevé d'abord, puis la
+ * revue la plus ancienne. Sert au bandeau de rappel et à l'ordre d'affichage.
+ */
+export function dossiersARevoir(
+  history: Dossier[],
+  intervalleMois: number,
+  nowIso: string,
+): Dossier[] {
+  return history
+    .filter((d) => vigilanceDue(d, intervalleMois, nowIso))
+    .sort((a, b) => {
+      const r = RISK_RANK[dossierRisk(b)] - RISK_RANK[dossierRisk(a)];
+      if (r !== 0) return r;
+      // À risque égal, le plus anciennement revu en premier.
+      return lastReviewDate(a).localeCompare(lastReviewDate(b));
+    });
+}
+
+/** Nombre de dossiers à revoir (rappel au démarrage). */
+export function countARevoir(
+  history: Dossier[],
+  intervalleMois: number,
+  nowIso: string,
+): number {
+  return history.reduce(
+    (n, d) => (vigilanceDue(d, intervalleMois, nowIso) ? n + 1 : n),
+    0,
+  );
 }
 
 /* ── Re-screening (orchestration réseau) ────────────────────────────── */

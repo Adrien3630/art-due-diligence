@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { lock } from "@/lib/vault";
+import { loadHistory, loadSettings } from "@/lib/storage";
+import { countARevoir } from "@/lib/monitoring";
 
 // Navigation : accueil, les trois analyses, l'historique et les réglages.
 const TABS = [
@@ -16,6 +19,15 @@ const TABS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  // Rappel de vigilance : nombre de dossiers à revoir, recalculé à chaque
+  // navigation (après un archivage ou un re-screening notamment).
+  const [aRevoir, setARevoir] = useState(0);
+  useEffect(() => {
+    const s = loadSettings();
+    setARevoir(
+      countARevoir(loadHistory(), s.revueIntervalleMois ?? 12, new Date().toISOString()),
+    );
+  }, [pathname]);
 
   return (
     <aside className="w-64 shrink-0 border-r border-line bg-surface-2 flex flex-col">
@@ -65,6 +77,14 @@ export function Sidebar() {
                 >
                   {tab.label}
                 </span>
+                {tab.href === "/historique" && aRevoir > 0 && (
+                  <span
+                    className="ml-auto rounded-full bg-risk-mid px-1.5 py-0.5 text-[0.62rem] font-semibold leading-none text-white"
+                    title={`${aRevoir} dossier(s) à revoir`}
+                  >
+                    {aRevoir}
+                  </span>
+                )}
               </div>
               <span className="block pl-[18px] text-[0.7rem] text-muted mt-0.5">
                 {tab.hint}
