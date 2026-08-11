@@ -175,6 +175,65 @@ function RegisterRow({
   );
 }
 
+/** Compteur de progression des vérifications de registres. */
+function RegisterProgress({ checks }: { checks: RegisterCheck[] }) {
+  const total = checks.length;
+  const verifies = checks.filter((c) => c.resultat !== "non_verifie").length;
+  const complet = verifies === total;
+  return (
+    <span
+      className={`shrink-0 rounded-full px-2.5 py-0.5 text-[0.7rem] font-medium ${
+        complet ? "bg-risk-low-bg text-risk-low" : "bg-surface-2 text-muted"
+      }`}
+    >
+      {verifies}/{total} vérifié{verifies > 1 ? "s" : ""}
+    </span>
+  );
+}
+
+/**
+ * Colonne de registres (vol ou spoliation) avec ouverture groupée « 1 clic »
+ * des recherches restant à vérifier. On OUVRE les recherches ; c'est toujours
+ * l'humain qui constate et consigne le résultat (aucun pré-cochage).
+ */
+function RegisterColumn({
+  titre,
+  list,
+  terms,
+  onChange,
+}: {
+  titre: string;
+  list: RegisterCheck[];
+  terms: string;
+  onChange: (c: RegisterCheck) => void;
+}) {
+  const aVerifier = list.filter((c) => c.resultat === "non_verifie");
+  const openAll = () => {
+    for (const c of aVerifier) {
+      if (c.url) window.open(c.url, "_blank", "noopener,noreferrer");
+    }
+  };
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <div className="label-eyebrow text-gold">{titre}</div>
+        {aVerifier.length > 0 && (
+          <button
+            type="button"
+            onClick={openAll}
+            className="text-[0.7rem] text-ink-soft underline-offset-2 hover:text-gold hover:underline"
+          >
+            Ouvrir les {aVerifier.length} recherche{aVerifier.length > 1 ? "s" : ""} à vérifier ↗
+          </button>
+        )}
+      </div>
+      {list.map((c) => (
+        <RegisterRow key={c.id} check={c} terms={terms} onChange={onChange} />
+      ))}
+    </div>
+  );
+}
+
 export function ArtworkForm({
   artwork,
   onChange,
@@ -317,25 +376,24 @@ export function ArtworkForm({
 
       {/* Registres */}
       <div>
-        <SectionTitle eyebrow="Volet 3">Vérifications registres</SectionTitle>
+        <div className="flex items-center justify-between gap-3">
+          <SectionTitle eyebrow="Volet 3">Vérifications registres</SectionTitle>
+          <RegisterProgress checks={checks} />
+        </div>
         <p className="-mt-3 mb-4 text-[0.72rem] leading-relaxed text-muted">
           Les liens ouvrent une recherche pré-remplie (artiste + titre). La plupart
-          de ces bases n'ont pas d'API : constatez le résultat et consignez-le. Tant
-          qu'un registre n'est pas vérifié, il reste un point de vigilance.
+          de ces bases n'ont pas d'API : constatez le résultat et consignez-le
+          vous-même. Tant qu'un registre n'est pas vérifié, il reste un point de
+          vigilance. L'outil n'affirme jamais « aucun match » à votre place.
         </p>
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <div>
-            <div className="label-eyebrow mb-1 text-gold">Œuvres volées</div>
-            {vol.map((c) => (
-              <RegisterRow key={c.id} check={c} terms={terms} onChange={setCheck} />
-            ))}
-          </div>
-          <div>
-            <div className="label-eyebrow mb-1 text-gold">Spoliations (1933-1945)</div>
-            {spoliation.map((c) => (
-              <RegisterRow key={c.id} check={c} terms={terms} onChange={setCheck} />
-            ))}
-          </div>
+          <RegisterColumn titre="Œuvres volées" list={vol} terms={terms} onChange={setCheck} />
+          <RegisterColumn
+            titre="Spoliations (1933-1945)"
+            list={spoliation}
+            terms={terms}
+            onChange={setCheck}
+          />
         </div>
       </div>
 
