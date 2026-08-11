@@ -30,8 +30,10 @@ jobs:
       - run: npm ci
       # Navigateur seul (les tests ne ciblent que chromium) + dépendances système.
       - run: npx playwright install --with-deps chromium
-      # Le webServer Playwright lance `npm run dev` ; en CI il démarre toujours un
-      # serveur neuf (reuseExistingServer: !CI).
+      # En CI, le webServer Playwright lance `next start` (serveur de production) :
+      # démarrage plus rapide et représentatif que `next dev`. Le build doit donc
+      # précéder les tests.
+      - run: npm run build
       - run: npm run e2e
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
