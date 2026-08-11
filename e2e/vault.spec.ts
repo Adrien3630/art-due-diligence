@@ -1,6 +1,5 @@
 import { test, expect } from "@playwright/test";
-
-const PASS = "phrase-secrete-e2e-123";
+import { PASS } from "./helpers";
 
 // Le parcours de sécurité le plus critique : création du coffre chiffré, puis
 // verrouillage (au rechargement la clé en mémoire est purgée) et déverrouillage.
