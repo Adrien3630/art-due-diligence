@@ -13,6 +13,8 @@ import {
   updateDossier,
 } from "@/lib/storage";
 import {
+  countARevoir,
+  dossiersARevoir,
   isVigilanceApplicable,
   rescreenDossier,
   vigilanceDue,
@@ -108,6 +110,12 @@ export default function HistoriquePage() {
   }
 
   const intervalle = settings?.revueIntervalleMois ?? 12;
+  // Priorisation : les dossiers à revoir (risque le plus élevé, revue la plus
+  // ancienne) remontent en tête ; les autres conservent leur ordre.
+  const aRevoir = dossiersARevoir(history, intervalle, now);
+  const aRevoirIds = new Set(aRevoir.map((d) => d.id));
+  const ordered = [...aRevoir, ...history.filter((d) => !aRevoirIds.has(d.id))];
+  const nARevoir = countARevoir(history, intervalle, now);
 
   return (
     <div className="mx-auto max-w-5xl px-10 py-10">
@@ -125,6 +133,19 @@ export default function HistoriquePage() {
           </Button>
         )}
       </header>
+
+      {nARevoir > 0 && (
+        <div className="mb-5 flex items-center gap-3 rounded-md border border-risk-mid/40 bg-risk-mid-bg px-4 py-3">
+          <span className="text-lg">🔔</span>
+          <p className="text-[0.82rem] leading-relaxed text-ink-soft">
+            <strong className="font-medium text-risk-mid">
+              {nARevoir} dossier{nARevoir > 1 ? "s" : ""} à revoir
+            </strong>{" "}
+            (revue périodique dépassée, intervalle de {intervalle} mois). Ils sont
+            remontés en tête, du plus à risque au plus ancien. Re-screenez-les.
+          </p>
+        </div>
+      )}
 
       {history.length === 0 ? (
         <Card className="text-center">
@@ -149,7 +170,7 @@ export default function HistoriquePage() {
             ))}
           </div>
           <ul>
-            {history.map((d) => {
+            {ordered.map((d) => {
               const { sujet, niveau } = summarize(d);
               const due = vigilanceDue(d, intervalle, now);
               const applicable = isVigilanceApplicable(d);
