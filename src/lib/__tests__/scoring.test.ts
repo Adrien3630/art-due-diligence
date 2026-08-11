@@ -293,6 +293,22 @@ describe("aggregateTransaction", () => {
     });
     expect(agg.niveau).toBe("vigilance");
   });
+
+  it("mode achat (acheteur absent) : agrège vendeur + œuvre sans erreur", () => {
+    const vendeur = assessActor(fullPerson(), clearScreening(), [], { ...ctx, montantEur: null });
+    const oeuvre = assessArtwork(emptyArtwork()); // élevé
+    const agg = aggregateTransaction({
+      montantEur: null,
+      acheteur: null,
+      vendeur,
+      oeuvre,
+      comportement: freshComportement(),
+    });
+    expect(agg.niveau).toBe("eleve");
+    // Aucune mention « Acheteur — » quand il n'est pas évalué.
+    expect(agg.facteurs.some((f) => f.startsWith("Acheteur —"))).toBe(false);
+    expect(agg.facteurs.some((f) => f.startsWith("Vendeur —"))).toBe(true);
+  });
 });
 
 /* ───────────────── Invariants divers ───────────────── */

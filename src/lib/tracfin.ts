@@ -53,8 +53,10 @@ function extract(dossier: Dossier): {
       niveau: dossier.assessment.niveau,
     };
   }
-  const personnes = [actorLine(dossier.acheteur.actor)];
-  if (dossier.vendeur) personnes.push(actorLine(dossier.vendeur.actor));
+  const personnes = [dossier.acheteur, dossier.vendeur]
+    .filter((p): p is NonNullable<typeof p> => p != null)
+    .map((p) => actorLine(p.actor));
+  if (!personnes.length) personnes.push("— (aucune partie renseignée)");
   const a = dossier.oeuvre.artwork;
   const montant =
     dossier.montantEur != null ? ` Montant : ${dossier.montantEur.toLocaleString("fr-FR")} €.` : "";

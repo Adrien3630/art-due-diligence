@@ -20,7 +20,7 @@ import {
   pdf,
 } from "@react-pdf/renderer";
 import { AUDIT_LABEL } from "@/lib/audit";
-import { PENAL_RESPONSIBILITY_NOTICE } from "@/lib/scoring";
+import { PENAL_RESPONSIBILITY_NOTICE, TRANSACTION_MODE_LABEL } from "@/lib/scoring";
 import type {
   Actor,
   ActorDossier,
@@ -475,11 +475,12 @@ function TransactionReport({ dossier }: { dossier: TransactionDossier }) {
           <View style={[s.macaron, { backgroundColor: m.bg, color: m.fg }]}>
             <Text>{m.label}</Text>
           </View>
-          {dossier.montantEur != null && (
-            <Text style={{ alignSelf: "center", color: "#8d8678" }}>
-              Montant : {dossier.montantEur.toLocaleString("fr-FR")} €
-            </Text>
-          )}
+          <Text style={{ alignSelf: "center", color: "#8d8678" }}>
+            {TRANSACTION_MODE_LABEL[dossier.mode]}
+            {dossier.montantEur != null
+              ? ` · Montant : ${dossier.montantEur.toLocaleString("fr-FR")} €`
+              : ""}
+          </Text>
         </View>
         <Factors facteurs={dossier.facteurs} />
         {flags.length > 0 && (
@@ -494,17 +495,21 @@ function TransactionReport({ dossier }: { dossier: TransactionDossier }) {
           </View>
         )}
 
-        <Text style={s.h2}>Acheteur</Text>
-        <View style={s.sectionRule} />
-        <ActorBody
-          actor={dossier.acheteur.actor}
-          screening={dossier.acheteur.screening}
-          beneficiaires={dossier.acheteur.beneficiairesScreening}
-          tier={dossier.acheteur.assessment.tier}
-          niveau={dossier.acheteur.assessment.niveau}
-          sousScores={dossier.acheteur.assessment.sousScores}
-          pieces={dossier.acheteur.assessment.piecesACollecter}
-        />
+        {dossier.acheteur && (
+          <>
+            <Text style={s.h2}>Acheteur</Text>
+            <View style={s.sectionRule} />
+            <ActorBody
+              actor={dossier.acheteur.actor}
+              screening={dossier.acheteur.screening}
+              beneficiaires={dossier.acheteur.beneficiairesScreening}
+              tier={dossier.acheteur.assessment.tier}
+              niveau={dossier.acheteur.assessment.niveau}
+              sousScores={dossier.acheteur.assessment.sousScores}
+              pieces={dossier.acheteur.assessment.piecesACollecter}
+            />
+          </>
+        )}
 
         {dossier.vendeur && (
           <>

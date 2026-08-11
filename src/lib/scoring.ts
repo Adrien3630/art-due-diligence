@@ -791,7 +791,7 @@ export function freshComportement(): AuditAnswer[] {
 /** Agrège les volets d'une transaction en une synthèse globale. */
 export function aggregateTransaction(input: {
   montantEur: number | null;
-  acheteur: ActorAssessment;
+  acheteur: ActorAssessment | null;
   vendeur: ActorAssessment | null;
   oeuvre: ArtworkAssessment;
   comportement: AuditAnswer[];
@@ -799,7 +799,9 @@ export function aggregateTransaction(input: {
   const facteurs: string[] = [];
   let points = 0;
 
-  facteurs.push(`Acheteur — ${RISK_META[input.acheteur.niveau].label.toLowerCase()}.`);
+  // Seules les parties réellement présentées comptent (selon le mode).
+  if (input.acheteur)
+    facteurs.push(`Acheteur — ${RISK_META[input.acheteur.niveau].label.toLowerCase()}.`);
   if (input.vendeur)
     facteurs.push(`Vendeur — ${RISK_META[input.vendeur.niveau].label.toLowerCase()}.`);
   facteurs.push(`Œuvre — ${RISK_META[input.oeuvre.niveau].label.toLowerCase()}.`);
@@ -811,7 +813,8 @@ export function aggregateTransaction(input: {
     }
   }
 
-  const levels = [input.acheteur.niveau, input.oeuvre.niveau];
+  const levels = [input.oeuvre.niveau];
+  if (input.acheteur) levels.push(input.acheteur.niveau);
   if (input.vendeur) levels.push(input.vendeur.niveau);
   let niveau = worstLevel(levels);
   // Le comportement peut faire monter, jamais descendre.
@@ -820,6 +823,16 @@ export function aggregateTransaction(input: {
 
   return { niveau, facteurs };
 }
+
+/** Libellés des modes d'opération (affichage + rapport). */
+export const TRANSACTION_MODE_LABEL: Record<
+  import("./types").TransactionMode,
+  string
+> = {
+  vente: "Vente (galerie → acheteur)",
+  achat: "Achat (vendeur → galerie)",
+  intermediation: "Intermédiation (vendeur → acheteur)",
+};
 
 /* ───────────────────────── Mentions légales ───────────────────────── */
 

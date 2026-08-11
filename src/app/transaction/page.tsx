@@ -32,6 +32,7 @@ import {
   assessActor,
   assessArtwork,
   freshComportement,
+  TRANSACTION_MODE_LABEL,
 } from "@/lib/scoring";
 import { appendEvent, buildTrail } from "@/lib/audit";
 import { classifyMatches } from "@/lib/classify";
@@ -46,6 +47,7 @@ import type {
   ScreeningResult,
   Settings,
   TransactionDossier,
+  TransactionMode,
   TransactionParty,
 } from "@/lib/types";
 
@@ -112,9 +114,9 @@ function PartyResult({
 }
 
 export default function TransactionPage() {
+  const [mode, setMode] = useState<TransactionMode>("vente");
   const [acheteur, setAcheteur] = useState<Actor>(() => emptyActor("acheteur"));
   const [vendeur, setVendeur] = useState<Actor>(() => emptyActor("vendeur"));
-  const [withVendeur, setWithVendeur] = useState(true);
   const [artwork, setArtwork] = useState<Artwork>(() => emptyArtwork());
   const [comportement, setComportement] = useState<AuditAnswer[]>(() => freshComportement());
   const [montant, setMontant] = useState("");
@@ -128,9 +130,9 @@ export default function TransactionPage() {
     if (id) {
       const d = loadHistory().find((x) => x.id === id);
       if (d && d.kind === "transaction") {
-        setAcheteur(d.acheteur.actor);
+        setMode(d.mode);
+        setAcheteur(d.acheteur?.actor ?? emptyActor("acheteur"));
         setVendeur(d.vendeur?.actor ?? emptyActor("vendeur"));
-        setWithVendeur(!!d.vendeur);
         setArtwork(d.oeuvre.artwork);
         setComportement(d.comportement);
         setMontant(d.montantEur != null ? String(d.montantEur) : "");
@@ -139,10 +141,19 @@ export default function TransactionPage() {
     }
   }, []);
 
-  // Pièce d'identité acheteur obligatoire si la case « > seuil » est cochée.
+  // Parties réellement évaluées selon le mode d'opération.
+  const showAcheteur = mode !== "achat";
+  const showVendeur = mode !== "vente";
+
+  // Pièce d'identité acheteur obligatoire si la case « > seuil » est cochée
+  // (uniquement pertinent quand l'acheteur est évalué).
   const idManquante =
-    acheteur.transactionSuperieureSeuil && !acheteur.pieceIdentiteDoc;
-  const canRun = acheteur.nom.trim().length > 0 && !idManquante;
+    showAcheteur && acheteur.transactionSuperieureSeuil && !acheteur.pieceIdentiteDoc;
+  // Au moins la partie évaluée doit être nommée.
+  const partieNommee =
+    (showAcheteur && acheteur.nom.trim().length > 0) ||
+    (showVendeur && vendeur.nom.trim().length > 0);
+  const canRun = partieNommee && !idManquante;
   const hasKey = !!settings?.apiKey;
   const seuilEur = settings?.seuilVigilanceEur ?? 10000;
   // Montant saisi → alimente le verdict de cohérence de prix dans l'œuvre.
@@ -155,27 +166,30 @@ export default function TransactionPage() {
     const cred: ScreeningCred = { fournisseur: settings.fournisseur, apiKey: settings.apiKey };
     const ctx = { seuilVigilanceEur: settings.seuilVigilanceEur, montantEur };
 
-    const acheteurParty = await screenParty(acheteur, cred, ctx);
+    const acheteurParty =
+      showAcheteur && acheteur.nom.trim() ? await screenParty(acheteur, cred, ctx) : null;
     const vendeurParty =
-      withVendeur && vendeur.nom.trim() ? await screenParty(vendeur, cred, ctx) : null;
+      showVendeur && vendeur.nom.trim() ? await screenParty(vendeur, cred, ctx) : null;
     const oeuvreAssessment = assessArtwork(artwork);
 
     const agg = aggregateTransaction({
       montantEur,
-      acheteur: acheteurParty.assessment,
+      acheteur: acheteurParty?.assessment ?? null,
       vendeur: vendeurParty?.assessment ?? null,
       oeuvre: oeuvreAssessment,
       comportement,
     });
 
     const auditTrail = await buildTrail([
-      { type: "dossier_cree", detail: "Dossier transaction créé" },
-      { type: "screening_lance", detail: `Screening lancé (${settings.fournisseur}) sur les parties` },
-      { type: "screening_resultat", detail: `Résultat acheteur : ${acheteurParty.screening.status}` },
+      { type: "dossier_cree", detail: `Dossier transaction créé — ${TRANSACTION_MODE_LABEL[mode]}` },
+      { type: "screening_lance", detail: `Screening lancé (${settings.fournisseur}) sur les parties évaluées` },
+      ...(acheteurParty
+        ? [{ type: "screening_resultat" as const, detail: `Résultat acheteur : ${acheteurParty.screening.status}` }]
+        : []),
       ...(vendeurParty
         ? [{ type: "screening_resultat" as const, detail: `Résultat vendeur : ${vendeurParty.screening.status}` }]
         : []),
-      ...(acheteur.pieceIdentiteDoc
+      ...(acheteurParty?.actor.pieceIdentiteDoc
         ? [{ type: "piece_ajoutee" as const, detail: "Pièce d'identité de l'acheteur jointe" }]
         : []),
     ]);
@@ -184,6 +198,7 @@ export default function TransactionPage() {
       id: newId(),
       date: new Date().toISOString(),
       kind: "transaction",
+      mode,
       montantEur,
       acheteur: acheteurParty,
       vendeur: vendeurParty,
@@ -223,12 +238,13 @@ export default function TransactionPage() {
       const screening = { ...p.screening, matches, status };
       return { ...p, screening, assessment: assessActor(p.actor, screening, p.beneficiairesScreening, ctx) };
     };
-    const acheteur = which === "acheteur" ? updateParty(result.acheteur) : result.acheteur;
+    const acheteur =
+      which === "acheteur" && result.acheteur ? updateParty(result.acheteur) : result.acheteur;
     const vendeur =
       which === "vendeur" && result.vendeur ? updateParty(result.vendeur) : result.vendeur;
     const agg = aggregateTransaction({
       montantEur: result.montantEur,
-      acheteur: acheteur.assessment,
+      acheteur: acheteur?.assessment ?? null,
       vendeur: vendeur?.assessment ?? null,
       oeuvre: result.oeuvre.assessment,
       comportement: result.comportement,
@@ -266,33 +282,54 @@ export default function TransactionPage() {
 
       <div className="space-y-6">
         <Card>
-          <SectionTitle eyebrow="Volet acteur">Acheteur</SectionTitle>
-          <ActorForm
-            actor={acheteur}
-            onChange={setAcheteur}
-            hideRole
-            seuilEur={seuilEur}
-          />
+          <SectionTitle eyebrow="Nature de l'opération">Mode</SectionTitle>
+          <p className="-mt-3 mb-3 text-[0.78rem] leading-relaxed text-muted">
+            Le mode détermine les parties évaluées. Dans une vente ou un achat, la
+            galerie est sa propre contrepartie et n'est pas screenée.
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {(
+              [
+                { v: "vente", desc: "Galerie → acheteur" },
+                { v: "achat", desc: "Vendeur → galerie" },
+                { v: "intermediation", desc: "Vendeur → acheteur" },
+              ] as { v: TransactionMode; desc: string }[]
+            ).map((o) => (
+              <button
+                key={o.v}
+                type="button"
+                onClick={() => setMode(o.v)}
+                className={`rounded-md border p-3 text-left transition-colors ${
+                  mode === o.v
+                    ? "border-gold bg-surface-2"
+                    : "border-line hover:border-line-strong"
+                }`}
+              >
+                <div className="text-[0.86rem] font-medium capitalize text-ink">{o.v}</div>
+                <div className="text-[0.72rem] text-muted">{o.desc}</div>
+              </button>
+            ))}
+          </div>
         </Card>
 
-        <Card>
-          <div className="mb-4 flex items-center justify-between">
+        {showAcheteur && (
+          <Card>
+            <SectionTitle eyebrow="Volet acteur">Acheteur</SectionTitle>
+            <ActorForm
+              actor={acheteur}
+              onChange={setAcheteur}
+              hideRole
+              seuilEur={seuilEur}
+            />
+          </Card>
+        )}
+
+        {showVendeur && (
+          <Card>
             <SectionTitle eyebrow="Volet acteur">Vendeur</SectionTitle>
-            <label className="flex items-center gap-2 text-[0.78rem] text-ink-soft">
-              <input
-                type="checkbox"
-                checked={withVendeur}
-                onChange={(e) => setWithVendeur(e.target.checked)}
-              />
-              Inclure le vendeur
-            </label>
-          </div>
-          {withVendeur ? (
             <ActorForm actor={vendeur} onChange={setVendeur} hideRole />
-          ) : (
-            <p className="text-[0.78rem] text-muted">Vendeur exclu de ce dossier.</p>
-          )}
-        </Card>
+          </Card>
+        )}
 
         <Card>
           <SectionTitle eyebrow="Volet œuvre">Œuvre</SectionTitle>
@@ -326,9 +363,9 @@ export default function TransactionPage() {
             Pièce d'identité de l'acheteur obligatoire (transaction au-dessus du
             seuil) — ajoutez-la pour créer le dossier.
           </span>
-        ) : acheteur.nom.trim().length === 0 ? (
+        ) : !partieNommee ? (
           <span className="text-[0.72rem] text-muted">
-            Renseignez au moins le nom de l'acheteur.
+            Renseignez au moins le nom {showAcheteur ? "de l'acheteur" : "du vendeur"}.
           </span>
         ) : null}
       </div>
@@ -337,7 +374,7 @@ export default function TransactionPage() {
         <div className="mt-8 animate-rise">
           <Card className="border-line-strong">
             <div className="flex items-start justify-between gap-4">
-              <SectionTitle eyebrow={`Réf. ${result.id}`}>
+              <SectionTitle eyebrow={`Réf. ${result.id} · ${TRANSACTION_MODE_LABEL[result.mode]}`}>
                 Synthèse de la transaction
               </SectionTitle>
               <RiskBadge niveau={result.niveau} />
@@ -356,13 +393,15 @@ export default function TransactionPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <PartyResult
-                titre="Acheteur"
-                which="acheteur"
-                party={result.acheteur}
-                settings={settings}
-                onMatchesChange={updatePartyScreening}
-              />
+              {result.acheteur && (
+                <PartyResult
+                  titre="Acheteur"
+                  which="acheteur"
+                  party={result.acheteur}
+                  settings={settings}
+                  onMatchesChange={updatePartyScreening}
+                />
+              )}
               {result.vendeur && (
                 <PartyResult
                   titre="Vendeur"

@@ -39,10 +39,15 @@ function summarize(d: Dossier): { sujet: string; niveau: RiskLevel } {
         : "—";
     return { sujet, niveau: d.assessment.niveau };
   }
-  const a = d.acheteur.actor;
-  const ach = a.kind === "entite" ? a.nom : `${a.prenoms} ${a.nom}`.trim();
+  // La partie affichée dépend du mode (acheteur en vente, vendeur en achat).
+  const partie = d.acheteur?.actor ?? d.vendeur?.actor ?? null;
+  const nom = partie
+    ? partie.kind === "entite"
+      ? partie.nom
+      : `${partie.prenoms} ${partie.nom}`.trim()
+    : "";
   return {
-    sujet: `${ach || "—"} · ${d.oeuvre.artwork.titre || "œuvre"}`,
+    sujet: `${nom || "—"} · ${d.oeuvre.artwork.titre || "œuvre"}`,
     niveau: d.niveau,
   };
 }
