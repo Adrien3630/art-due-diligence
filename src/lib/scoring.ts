@@ -177,7 +177,7 @@ export function assessActor(
     let points = 0;
     if (hasPpe) {
       facteurs.push(
-        "Personne politiquement exposée (PPE) — vigilance renforcée requise par la loi.",
+        "Personne politiquement exposée (PPE) — mesures de vigilance complémentaires (art. L. 561-10, 1° CMF).",
       );
       points += 4;
     }
@@ -201,12 +201,12 @@ export function assessActor(
     let points = 0;
     if (jur === "high") {
       facteurs.push(
-        `Juridiction à très haut risque (${JURISDICTION_LABEL.high}) — vigilance renforcée.`,
+        `Pays tiers à haut risque (${JURISDICTION_LABEL.high}) — vigilance complémentaire (art. L. 561-10, 3° CMF).`,
       );
       points += 5;
     } else if (jur === "monitored") {
       facteurs.push(
-        `Juridiction sous surveillance renforcée GAFI (${JURISDICTION_LABEL.monitored}).`,
+        `Pays tiers sous surveillance renforcée GAFI (${JURISDICTION_LABEL.monitored}) — art. L. 561-10, 3° CMF.`,
       );
       points += 3;
     } else {
@@ -305,9 +305,10 @@ export function assessActor(
   const piecesACollecter: CollectionItem[] = [];
   const motifs: string[] = [];
   if (hasSanction) motifs.push("correspondance de sanction");
-  if (hasPpe) motifs.push("personne politiquement exposée");
-  if (jur === "high") motifs.push("juridiction à très haut risque");
-  else if (jur === "monitored") motifs.push("juridiction sous surveillance GAFI");
+  if (hasPpe) motifs.push("personne politiquement exposée (L. 561-10, 1°)");
+  if (jur === "high") motifs.push("pays tiers à haut risque (L. 561-10, 3°)");
+  else if (jur === "monitored")
+    motifs.push("pays tiers sous surveillance GAFI (L. 561-10, 3°)");
   if (montantDepasse)
     motifs.push(
       `montant ≥ seuil (${ctx.seuilVigilanceEur.toLocaleString("fr-FR")} €)`,
@@ -819,6 +820,20 @@ export function aggregateTransaction(input: {
 
   return { niveau, facteurs };
 }
+
+/* ───────────────────────── Mentions légales ───────────────────────── */
+
+/**
+ * Rappel de responsabilité pénale individuelle de l'assujetti. Affiché à la
+ * clôture d'un dossier et dans le rapport PDF. Formulation volontairement
+ * générique (pas de citation d'article non vérifié) : l'outil assiste, il
+ * n'exonère pas.
+ */
+export const PENAL_RESPONSIBILITY_NOTICE =
+  "L'assujetti demeure personnellement et pénalement responsable du respect de ses " +
+  "obligations de vigilance, de conservation et, le cas échéant, de déclaration de " +
+  "soupçon. Cet outil est une aide à la structuration de la vigilance : il ne se " +
+  "substitue pas au jugement du professionnel et ne l'exonère d'aucune responsabilité.";
 
 /* ───────────────────────── Métadonnées d'affichage ───────────────────────── */
 

@@ -20,6 +20,7 @@ import {
   pdf,
 } from "@react-pdf/renderer";
 import { AUDIT_LABEL } from "@/lib/audit";
+import { PENAL_RESPONSIBILITY_NOTICE } from "@/lib/scoring";
 import type {
   Actor,
   ActorDossier,
@@ -184,6 +185,9 @@ function Disclaimer({ extra }: { extra?: string }) {
         seuils sont indicatifs et doivent être validés par un juriste.{extra ? ` ${extra}` : ""}
         Toute décision (poursuite, déclaration de soupçon, refus) relève de
         l'appréciation humaine du professionnel assujetti.
+      </Text>
+      <Text style={{ marginTop: 5, fontFamily: "Helvetica-Oblique" }}>
+        {PENAL_RESPONSIBILITY_NOTICE}
       </Text>
     </View>
   );

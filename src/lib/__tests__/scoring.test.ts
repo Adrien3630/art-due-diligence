@@ -109,6 +109,20 @@ describe("assessActor — approche par les risques", () => {
     expect(r.tier).toBe("renforcee");
   });
 
+  it("cite la base légale PPE (L. 561-10, 1°) distinctement des pays tiers", () => {
+    const r = assessActor(fullPerson(), withStatus("ppe"), [], { ...ctx, montantEur: null });
+    const ppe = r.sousScores.find((s) => s.categorie === "PPE / Médias");
+    expect(ppe?.facteurs.some((f) => f.includes("L. 561-10, 1°"))).toBe(true);
+  });
+
+  it("cite la base légale pays tiers (L. 561-10, 3°) sur juridiction à risque", () => {
+    const a = fullPerson();
+    a.pays = "Iran";
+    const r = assessActor(a, clearScreening(), [], { ...ctx, montantEur: null });
+    const jur = r.sousScores.find((s) => s.categorie === "Juridiction");
+    expect(jur?.facteurs.some((f) => f.includes("L. 561-10, 3°"))).toBe(true);
+  });
+
   it("entité sans bénéficiaire effectif → opacité (vigilance standard)", () => {
     const a = emptyActor("acheteur");
     a.kind = "entite";

@@ -24,6 +24,7 @@ import {
   REGISTRE_GELS_URL,
 } from "@/lib/freeze";
 import { upsertDossier } from "@/lib/storage";
+import { PENAL_RESPONSIBILITY_NOTICE } from "@/lib/scoring";
 import type { Dossier, HumanDecision, RiskLevel, Settings } from "@/lib/types";
 
 function dossierNiveau(d: Dossier): RiskLevel {
@@ -222,6 +223,10 @@ export function CompliancePanel<D extends Dossier>({
           )}
         </div>
       )}
+
+      <p className="mt-4 rounded-md border border-line bg-surface-2 p-3 text-[0.72rem] leading-relaxed text-ink-soft">
+        <strong className="font-medium">Responsabilité.</strong> {PENAL_RESPONSIBILITY_NOTICE}
+      </p>
 
       <div className="mt-5">
         <AuditTimeline trail={dossier.auditTrail} />
