@@ -8,11 +8,13 @@
   FACULTATIFS.
 */
 
+import { useState } from "react";
 import { Field, SectionTitle } from "@/components/ui";
 import { AuditList } from "@/components/AuditList";
 import { ImageDropzone } from "@/components/ImageDropzone";
 import { BeneficiaryEditor } from "@/components/BeneficiaryEditor";
 import { emptyBeneficiary } from "@/lib/factories";
+import { runOcr, parseIdentityText, parseEntityText } from "@/lib/ocr";
 import type { Actor, ActorKind, ActorRole } from "@/lib/types";
 
 const ROLE_LABEL: Record<ActorRole, string> = {
@@ -20,6 +22,118 @@ const ROLE_LABEL: Record<ActorRole, string> = {
   vendeur: "Vendeur",
   intermediaire: "Intermédiaire",
 };
+
+/**
+ * Analyse OCR ASSISTÉE d'une pièce (100 % locale). Propose des champs éditables ;
+ * rien n'est appliqué sans un clic explicite de validation. L'image ne quitte
+ * jamais la machine (tesseract.js / WebAssembly).
+ */
+type OcrRow = { key: keyof Actor; label: string; value: string };
+
+function OcrAssist({
+  dataUrl,
+  kind,
+  onApply,
+}: {
+  dataUrl: string;
+  kind: ActorKind;
+  onApply: (patch: Partial<Actor>) => void;
+}) {
+  const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [rows, setRows] = useState<OcrRow[]>([]);
+
+  async function analyse() {
+    setState("running");
+    try {
+      const text = await runOcr(dataUrl);
+      const out: OcrRow[] = [];
+      if (kind === "personne") {
+        const c = parseIdentityText(text);
+        if (c.nom) out.push({ key: "nom", label: "Nom", value: c.nom });
+        if (c.prenoms) out.push({ key: "prenoms", label: "Prénom(s)", value: c.prenoms });
+        if (c.dateNaissance)
+          out.push({ key: "dateNaissance", label: "Naissance", value: c.dateNaissance });
+        if (c.nationalite)
+          out.push({ key: "nationalite", label: "Nationalité", value: c.nationalite });
+      } else {
+        const c = parseEntityText(text);
+        if (c.nom) out.push({ key: "nom", label: "Raison sociale", value: c.nom });
+        if (c.immatriculation)
+          out.push({ key: "immatriculation", label: "Immatriculation", value: c.immatriculation });
+      }
+      setRows(out);
+      setState("done");
+    } catch {
+      setState("error");
+    }
+  }
+
+  const setRow = (i: number, value: string) =>
+    setRows((rs) => rs.map((r, j) => (j === i ? { ...r, value } : r)));
+
+  return (
+    <div className="mt-3 rounded-md border border-line bg-surface p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="label-eyebrow">Pré-remplissage assisté (OCR local)</div>
+        <button
+          type="button"
+          onClick={analyse}
+          disabled={state === "running"}
+          className="text-[0.74rem] font-medium text-gold underline-offset-2 hover:underline disabled:opacity-50"
+        >
+          {state === "running" ? "Analyse en cours…" : "Analyser la pièce ↻"}
+        </button>
+      </div>
+      <p className="mt-1 text-[0.7rem] leading-relaxed text-muted">
+        L'analyse s'effectue sur cet appareil ; l'image n'est pas transmise. Les
+        champs proposés sont <strong>éditables</strong> et ne sont appliqués qu'à
+        votre validation.
+      </p>
+      {state === "error" && (
+        <p className="mt-2 text-[0.72rem] text-risk-high">
+          Lecture impossible — saisissez les champs manuellement.
+        </p>
+      )}
+      {state === "done" && rows.length === 0 && (
+        <p className="mt-2 text-[0.72rem] text-muted">
+          Aucun champ exploitable détecté — saisie manuelle.
+        </p>
+      )}
+      {rows.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {rows.map((r, i) => (
+            <div key={r.key} className="flex items-center gap-2">
+              <span className="w-24 shrink-0 text-[0.72rem] text-muted">{r.label}</span>
+              <input
+                className="input-line flex-1"
+                value={r.value}
+                onChange={(e) => setRow(i, e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => onApply({ [r.key]: r.value } as Partial<Actor>)}
+                className="shrink-0 rounded-md border border-line px-2.5 py-1 text-[0.72rem] text-ink-soft hover:border-gold hover:text-gold"
+              >
+                Appliquer
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              onApply(
+                Object.fromEntries(rows.map((r) => [r.key, r.value])) as Partial<Actor>,
+              )
+            }
+            className="text-[0.72rem] font-medium text-gold underline-offset-2 hover:underline"
+          >
+            Tout appliquer
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Segmented<T extends string>({
   value,
@@ -200,6 +314,9 @@ export function ActorForm({
                   set({ pieceIdentiteDoc: dataUrl, pieceIdentiteDocNom: name })
                 }
               />
+              {actor.pieceIdentiteDoc && (
+                <OcrAssist dataUrl={actor.pieceIdentiteDoc} kind={actor.kind} onApply={set} />
+              )}
             </div>
           )}
         </div>
