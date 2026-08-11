@@ -36,21 +36,75 @@ Date de rédaction : 2026-06-17.
 
 ## A. Obligations légales outillées (à confirmer par le juriste)
 
-| # | Ce que fait l'outil | Source invoquée | À valider |
-|---|---|---|---|
-| A1 | Considère le marchand/galerie/intermédiaire d'art comme **assujetti** | Art. **L. 561-2, 10°** CMF | Périmètre exact des assujettis art |
-| A2 | Déclenche la vigilance au **seuil de 10 000 €** (transaction ou série liée) | Seuil art. marché de l'art ; param. `seuilVigilanceEur` | Montant, base de calcul (série liée ?) |
-| A3 | **Vigilance graduée** simplifiée / standard / renforcée | Art. **L. 561-9** (simplifiée) / **L. 561-10, L. 561-10-1** (renforcée, PPE) | Conditions exactes de déclenchement |
-| A4 | **Pays tiers à haut risque** → vigilance renforcée | Art. L. 561-10 ; listes UE / **GAFI** | Liste applicable + automatisme |
-| A5 | **Conservation 5 ans** des pièces après fin de relation | Art. **L. 561-12** CMF | Durée, point de départ, format |
-| A6 | **Déclaration de soupçon** à Tracfin (projet pré-rempli, jamais transmis) | Art. **L. 561-15** CMF | Contenu, canal ERMES |
-| A7 | **Gel des avoirs** sans délai + signalement DG Trésor sur hit sanction | Art. **L. 562-4** CMF | Procédure, registre national des gels |
-| A8 | Indicateurs de risque marché de l'art | **Rapport GAFI/FATF, 27 fév. 2023** (art & antiquités) | Correspondance indicateur ↔ question |
+Colonne **Vérif. sourcée** = résultat d'une vérification documentaire sur sources
+primaires (Légifrance / EUR-Lex / DG Trésor / GAFI) menée le **2026-08-11**. Ce
+n'est **pas** un avis juridique : elle appuie la décision du juriste, qui reste
+seul à valider. Détail et URLs en **§ A′** ci-dessous.
 
-> ⚠️ Le **snapshot des juridictions GAFI** ([`jurisdictions.ts`](src/lib/jurisdictions.ts))
-> est daté de **« février 2025 »** et **n'a pas de mécanisme de mise à jour**. Le GAFI
-> révise ses listes ~3×/an. **À actualiser à chaque plénière**, sinon l'outil
-> produit des réponses fausses sans le signaler.
+| # | Ce que fait l'outil | Source invoquée | Vérif. sourcée (2026-08-11) |
+|---|---|---|---|
+| A1 | Considère le marchand/galerie/intermédiaire d'art comme **assujetti** | Art. **L. 561-2, 10°** CMF | ✅ **Correct** — bon alinéa (10°), subordonné au seuil de 10 000 € |
+| A2 | Déclenche la vigilance au **seuil de 10 000 €** (transaction ou série liée) | Seuil art. marché de l'art ; param. `seuilVigilanceEur` | ⚠️ **Correct sur le fond / base à préciser** — seuil posé par la **loi** (L. 561-2, 10°), **pas** par un R. 561-x ; libellé exact : « série de transactions **liées** » |
+| A3 | **Vigilance graduée** simplifiée / standard / renforcée | Art. **L. 561-9** (simplifiée) / **L. 561-10, L. 561-10-1** (renforcée, PPE) | ❌ **Imprécis (fond)** — **PPE = L. 561-10, 1°** (vigilance *complémentaire*), **pas** L. 561-10-1 ; L. 561-10-1 = vigilance *renforcée* en cas de **risque élevé général** ; L. 561-9 (simplifiée) OK |
+| A4 | **Pays tiers à haut risque** → vigilance renforcée | Art. L. 561-10 ; listes UE / **GAFI** | ⚠️ **À préciser** — déclencheur au **L. 561-10, 3°** (renvoi art. 9 dir. (UE) 2015/849) ; liste de référence = **règlement délégué (UE) 2016/1675** + listes GAFI ; ne pas confondre L. 561-10 / -10-1 / -10-2 |
+| A5 | **Conservation 5 ans** des pièces après fin de relation | Art. **L. 561-12** CMF | ⚠️ **Correct / incomplet** — **deux** points de départ : fin de la relation **OU** exécution de l'opération |
+| A6 | **Déclaration de soupçon** à Tracfin (projet pré-rempli, jamais transmis) | Art. **L. 561-15** CMF | ✅ **Correct** — ERMES obligatoire depuis l'arrêté du 23/01/2025 ; déclaration **avant exécution** |
+| A7 | **Gel des avoirs** sans délai + signalement DG Trésor sur hit sanction | Art. **L. 562-4** CMF | ✅ **Correct** — distinguer **L. 562-2** (décision de gel) de **L. 562-4** (application sans délai) ; registre DG Trésor confirmé |
+| A8 | Indicateurs de risque marché de l'art | **Rapport GAFI/FATF, 27 fév. 2023** (art & antiquités) | ✅ **Correct** — titre et date exacts ; c'est un **rapport de typologies**, non une norme contraignante |
+
+> ⚠️ **Le snapshot des juridictions GAFI est OBSOLÈTE.**
+> [`jurisdictions.ts`](src/lib/jurisdictions.ts) est figé à **« février 2025 »** et
+> n'a pas de mécanisme de mise à jour. La plénière GAFI la plus récente est celle
+> du **19 juin 2026** : la **liste grise** est passée de **25 à 22 juridictions**.
+> La **liste noire est inchangée** (Corée du Nord, Iran, Myanmar).
+> - **Sortis** (→ le code produit des **faux positifs**) : Croatie, Mali, Tanzanie,
+>   Burkina Faso, Mozambique, **Nigéria**, **Afrique du Sud**, **Algérie**, Namibie.
+> - **Entrés** (→ le code produit des **faux négatifs**) : Bolivie, Îles Vierges
+>   britanniques, Koweït, Papouasie-Nouvelle-Guinée, Bosnie-Herzégovine, Irak.
+>
+> **Correction du code non incluse ici** (relève du chantier « limites techniques ») :
+> actualiser [`jurisdictions.ts`](src/lib/jurisdictions.ts) + prévoir une revue à
+> chaque plénière (~février / juin / octobre).
+
+---
+
+## A′. Corrections issues de la vérification sourcée (2026-08-11)
+
+> Vérification documentaire, **pas un avis juridique**. Les articles du CMF sont
+> à confirmer par le juriste dans leur version en vigueur (Légifrance).
+
+1. **A2 — base juridique du seuil.** Le seuil de 10 000 € est posé par la **loi
+   elle-même (art. L. 561-2, 10° CMF)**, non par un article réglementaire
+   (R. 561-x). Aligner le libellé sur « transaction ou **série de transactions
+   liées** ». Origine : ord. n° 2020-115 du 12/02/2020 (transposition 5e dir. AML).
+   [L. 561-2](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000050361172)
+2. **A3 — PPE : correction de fond.** Rattacher les PPE à l'art. **L. 561-10, 1°**
+   (mesures de vigilance *complémentaires*), et **non** à L. 561-10-1. L'art.
+   **L. 561-10-1** régit la vigilance *renforcée* en cas de **risque élevé** (cas
+   général), sans viser spécifiquement les PPE. L. 561-9 (simplifiée) : conserver.
+   [L. 561-9](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000041577821) ·
+   [L. 561-10](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000053153188) ·
+   [L. 561-10-1](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000033517667)
+3. **A4 — pays tiers à haut risque.** Déclencheur au **L. 561-10, 3°** (renvoi à
+   l'art. 9 dir. (UE) 2015/849). Liste de référence : **règlement délégué (UE)
+   2016/1675** (Commission) + listes GAFI. Ne pas confondre L. 561-10
+   (complémentaire) / L. 561-10-1 (renforcée) / L. 561-10-2 (opérations atypiques).
+   Réserve : paquet LCB-FT UE (règl. (UE) 2024/1624 « AMLR » + AMLA) applicable
+   progressivement dès 2027 — sans effet sur ces articles à ce jour.
+   [Règl. dél. 2016/1675](https://eur-lex.europa.eu/legal-content/FR/TXT/?uri=CELEX:02016R1675-20240207)
+4. **A5 — conservation.** Compléter : « 5 ans à compter de la **fin de la relation
+   d'affaires OU de l'exécution de l'opération** » (deux délais distincts).
+   [L. 561-12](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000041577784)
+5. **A6 — ERMES.** Préciser : usage d'ERMES obligatoire depuis l'arrêté du
+   23/01/2025 (en vigueur 01/02/2025) ; déclaration **avant exécution** de l'opération.
+6. **A7 — gel des avoirs.** Distinguer **L. 562-2** (décision de gel par arrêté)
+   de **L. 562-4** (application « sans délai » par l'assujetti + information DG
+   Trésor — bon fondement pour l'outil). Registre : `gels-avoirs.dgtresor.gouv.fr`.
+   [L. 562-4](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000045250683)
+7. **A8** — préciser que le rapport GAFI 2023 est un **rapport de typologies**,
+   pas une norme contraignante.
+8. **GAFI (urgent, code)** — remplacer le snapshot fév. 2025 par la plénière du
+   **19 juin 2026** (liste grise à 22 juridictions, cf. alerte ci-dessus).
 
 ---
 
