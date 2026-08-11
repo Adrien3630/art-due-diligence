@@ -1,0 +1,53 @@
+name: Rappel snapshot GAFI
+
+# Le référentiel des juridictions GAFI (src/lib/jurisdictions.ts) est figé dans
+# le code et doit être actualisé à chaque plénière (~février / juin / octobre).
+# Ce job vérifie mensuellement sa fraîcheur et ouvre une issue de rappel quand il
+# est périmé. Il n'écrit AUCUNE liste : la mise à jour reste manuelle et vérifiée.
+
+on:
+  schedule:
+    - cron: "0 8 1 * *" # le 1er de chaque mois, 08:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+      - id: gafi
+        run: npx -y tsx scripts/check-gafi-snapshot.ts
+      - name: Ouvrir une issue de rappel si périmé
+        if: steps.gafi.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGE: ${{ steps.gafi.outputs.age }}
+          SNAPSHOT: ${{ steps.gafi.outputs.snapshot }}
+        run: |
+          # Label idempotent (créé ou mis à jour), puis anti-doublon.
+          gh label create gafi-snapshot --color FBCA04 \
+            --description "Rappel de mise à jour du snapshot GAFI" --force
+          existing=$(gh issue list --label gafi-snapshot --state open --json number --jq 'length')
+          if [ "$existing" -gt 0 ]; then
+            echo "Une issue de rappel est déjà ouverte — rien à faire."
+            exit 0
+          fi
+          gh issue create \
+            --title "🌍 Snapshot GAFI périmé — actualiser jurisdictions.ts" \
+            --label gafi-snapshot \
+            --body "Le référentiel des juridictions GAFI (\`src/lib/jurisdictions.ts\`) date de « ${SNAPSHOT} » (~${AGE} mois). Le GAFI a probablement révisé ses listes depuis (plénières ~février / juin / octobre).
+
+          **À faire**
+          1. Récupérer la dernière liste grise (*increased monitoring*) et liste noire (*call for action*) sur fatf-gafi.org.
+          2. Mettre à jour \`APPEL_ACTION\`, \`SURVEILLANCE_RENFORCEE\`, \`GAFI_SNAPSHOT_DATE\` et \`GAFI_SNAPSHOT_ISO\`.
+          3. Ajuster les tests \`jurisdictions.test.ts\` (entrées/sorties) et le verrou de date dans \`bareme.test.ts\`.
+          4. Ouvrir une PR.
+
+          _Rappel : ce dépôt n'écrit jamais de liste juridique automatiquement — la mise à jour est manuelle et vérifiée._"
