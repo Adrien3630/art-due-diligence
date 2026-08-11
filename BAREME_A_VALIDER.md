@@ -21,6 +21,17 @@ Code de référence : [`src/lib/scoring.ts`](src/lib/scoring.ts),
 [`src/lib/jurisdictions.ts`](src/lib/jurisdictions.ts).
 Date de rédaction : 2026-06-17.
 
+> **Fidélité code ↔ document (vérifiée le 2026-08-11).** Chaque valeur chiffrée
+> ci-dessous a été confrontée au code et **correspond exactement**. Cette
+> correspondance est désormais **verrouillée par un test** :
+> [`src/lib/__tests__/bareme.test.ts`](src/lib/__tests__/bareme.test.ts). Si un
+> point, poids ou seuil est modifié dans le code sans que ce document soit mis à
+> jour, le test échoue en CI. **Conséquence pratique : toute évolution du barème
+> doit modifier le code ET ce document dans le même changement**, puis être
+> refaite valider. Le test ne juge PAS la pertinence des nombres (c'est l'objet
+> de la validation juridique) — il garantit seulement que le doc ne ment pas sur
+> le code.
+
 ---
 
 ## A. Obligations légales outillées (à confirmer par le juriste)
