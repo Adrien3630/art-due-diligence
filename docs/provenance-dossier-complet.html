@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Provenance — Dossier complet de l'outil &amp; du workflow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f2ea; --surface:#fffdf9; --surface2:#f1ebe0;
+    --ink:#17140f; --ink-soft:#4a4438; --muted:#8a8272;
+    --gold:#a8842e; --gold-soft:#b8933f;
+    --line:#e6ded4; --line-strong:#d8cebf;
+    --low:#3f7d55; --low-bg:#e8f0e8;
+    --mid:#b9762f; --mid-bg:#f6ecdd;
+    --high:#b03f3f; --high-bg:#f4e3e3;
+    --serif:'Playfair Display',Georgia,'Times New Roman',serif;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+       font-size:15.5px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .layout{display:grid;grid-template-columns:280px 1fr;max-width:1500px;margin:0 auto}
+  /* Sidebar / TOC */
+  nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;
+    background:var(--surface2);border-right:1px solid var(--line);padding:28px 22px}
+  nav.toc .brand{font-family:var(--serif);font-size:1.6rem;font-weight:700;letter-spacing:.01em}
+  nav.toc .brand .rule{height:2px;width:44px;background:var(--gold);margin:10px 0 4px;border-radius:2px}
+  nav.toc .tagline{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.14em;margin-bottom:22px}
+  nav.toc a{display:block;color:var(--ink-soft);text-decoration:none;font-size:.82rem;
+    padding:5px 10px;border-radius:6px;border-left:2px solid transparent}
+  nav.toc a:hover{background:var(--surface);color:var(--ink);border-left-color:var(--gold)}
+  nav.toc a.sub{padding-left:24px;font-size:.78rem;color:var(--muted)}
+  nav.toc .grp{font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);
+    margin:18px 0 6px;padding-left:10px}
+  /* Content */
+  main{padding:56px 64px 120px;max-width:1080px}
+  header.doc{border-bottom:1px solid var(--line);padding-bottom:34px;margin-bottom:44px}
+  header.doc .eyebrow{font-size:.72rem;text-transform:uppercase;letter-spacing:.18em;color:var(--gold);font-weight:600}
+  header.doc h1{font-family:var(--serif);font-size:2.9rem;font-weight:700;line-height:1.1;margin:.35em 0 .2em}
+  header.doc p.lead{font-size:1.08rem;color:var(--ink-soft);max-width:70ch;margin:.4em 0}
+  header.doc .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+  header.doc .meta span{font-size:.74rem;background:var(--surface);border:1px solid var(--line);
+    border-radius:20px;padding:4px 12px;color:var(--ink-soft)}
+  h2{font-family:var(--serif);font-size:1.85rem;font-weight:600;margin:64px 0 14px;
+    padding-top:14px;border-top:1px solid var(--line)}
+  h2 .num{color:var(--gold);font-size:1.2rem;vertical-align:middle;margin-right:10px}
+  h3{font-family:var(--serif);font-size:1.28rem;font-weight:600;margin:34px 0 10px;color:var(--ink)}
+  h4{font-size:.95rem;font-weight:600;margin:22px 0 8px;color:var(--ink)}
+  p{margin:.6em 0}
+  a{color:var(--gold);text-decoration-color:var(--line-strong)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;
+    background:var(--surface2);padding:1px 6px;border-radius:5px;color:#6b4f1a}
+  strong{font-weight:600}
+  ul,ol{margin:.5em 0 .8em;padding-left:1.3em}
+  li{margin:.28em 0}
+  /* Cards & callouts */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:22px 26px;margin:18px 0;box-shadow:0 1px 3px rgba(23,20,15,.04)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .note{border-left:3px solid var(--gold);background:var(--surface);padding:14px 20px;
+    border-radius:0 8px 8px 0;margin:18px 0;font-size:.92rem}
+  .note.warn{border-left-color:var(--high);background:var(--high-bg)}
+  .note.ok{border-left-color:var(--low);background:var(--low-bg)}
+  .note.info{border-left-color:var(--mid);background:var(--mid-bg)}
+  .note .lbl{font-weight:600;display:block;margin-bottom:2px}
+  /* Chips */
+  .chip{display:inline-block;font-size:.72rem;font-weight:600;padding:2px 10px;border-radius:20px;
+    border:1px solid transparent;vertical-align:middle}
+  .chip.low{color:var(--low);background:var(--low-bg);border-color:#c7ddc9}
+  .chip.mid{color:var(--mid);background:var(--mid-bg);border-color:#e8d3b0}
+  .chip.high{color:var(--high);background:var(--high-bg);border-color:#e3bcbc}
+  .chip.neutral{color:var(--ink-soft);background:var(--surface2);border-color:var(--line)}
+  /* Tables */
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.88rem}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  thead th{background:var(--surface2);font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--ink-soft);border-bottom:1px solid var(--line-strong)}
+  tbody tr:hover{background:var(--surface)}
+  td .pts{font-weight:700;font-variant-numeric:tabular-nums;color:var(--gold)}
+  /* Figures / screenshots */
+  figure{margin:26px 0;background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;box-shadow:0 4px 18px rgba(23,20,15,.07)}
+  figure .frame{background:var(--surface2);border-bottom:1px solid var(--line);padding:8px 14px;
+    font-size:.74rem;color:var(--muted);display:flex;align-items:center;gap:8px}
+  figure .frame .dot{width:9px;height:9px;border-radius:50%;background:#d8cebf;display:inline-block}
+  figure .shotwrap{max-height:none;text-align:center;background:#efe9df}
+  figure.tall .shotwrap{max-height:620px;overflow:auto}
+  figure img{display:block;width:100%;height:auto}
+  figcaption{padding:12px 18px;font-size:.82rem;color:var(--ink-soft);background:var(--surface);
+    border-top:1px solid var(--line)}
+  figcaption b{color:var(--ink)}
+  .scroll-hint{font-size:.72rem;color:var(--muted);font-style:italic}
+  /* Feature list */
+  .feat{display:flex;gap:12px;margin:12px 0}
+  .feat .ic{flex:0 0 34px;height:34px;border-radius:8px;background:var(--surface2);
+    display:flex;align-items:center;justify-content:center;font-size:1.05rem}
+  .feat .bd h4{margin:0 0 2px}
+  .feat .bd p{margin:0;font-size:.88rem;color:var(--ink-soft)}
+  kbd{font-family:ui-monospace,monospace;font-size:.8em;background:#2b2620;color:#f6f2ea;
+    padding:2px 7px;border-radius:5px}
+  .flow{counter-reset:step;margin:20px 0;padding:0;list-style:none}
+  .flow li{position:relative;padding:0 0 20px 52px;margin:0}
+  .flow li:before{counter-increment:step;content:counter(step);position:absolute;left:0;top:-2px;
+    width:34px;height:34px;border-radius:50%;background:var(--gold);color:#fff;font-weight:700;
+    display:flex;align-items:center;justify-content:center;font-size:.95rem}
+  .flow li:after{content:"";position:absolute;left:16px;top:34px;bottom:0;width:2px;background:var(--line-strong)}
+  .flow li:last-child:after{display:none}
+  .flow li h4{margin:4px 0 3px}
+  .flow li p{margin:0;font-size:.9rem;color:var(--ink-soft)}
+  .muted{color:var(--muted)}
+  .foot{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);font-size:.82rem;color:var(--muted)}
+  @media(max-width:960px){
+    .layout{grid-template-columns:1fr}
+    nav.toc{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line)}
+    main{padding:36px 22px 80px}
+    .grid2,.grid3{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand">Provenance<div class="rule"></div></div>
+  <div class="tagline">Due diligence LCB-FT · marché de l'art</div>
+  <div class="grp">Comprendre</div>
+  <a href="#vue">1. Vue d'ensemble</a>
+  <a href="#contraintes">2. Contraintes transversales</a>
+  <a href="#archi">3. Architecture &amp; stack</a>
+  <div class="grp">Le produit</div>
+  <a href="#coffre">4. Le coffre chiffré</a>
+  <a href="#modules">5. Les trois modules</a>
+  <a href="#acteur" class="sub">— Acteur</a>
+  <a href="#oeuvre" class="sub">— Œuvre</a>
+  <a href="#transaction" class="sub">— Transaction</a>
+  <a href="#moteur">6. Le moteur de risque (barème)</a>
+  <a href="#gafi">7. Référentiel GAFI &amp; garde-fou</a>
+  <a href="#screening">8. Screening &amp; faux positifs</a>
+  <a href="#aval">9. Obligations aval</a>
+  <a href="#audit">10. Piste d'audit</a>
+  <a href="#historique">11. Historique &amp; vigilance</a>
+  <a href="#parametres">12. Paramètres</a>
+  <div class="grp">Bout en bout</div>
+  <a href="#workflow">13. Workflow complet</a>
+  <a href="#juridique">14. Cadre juridique</a>
+  <a href="#tests">15. Tests &amp; CI</a>
+  <a href="#limites">16. Limites &amp; feuille de route</a>
+</nav>
+
+<main>
+<header class="doc">
+  <div class="eyebrow">Dossier technique &amp; fonctionnel</div>
+  <h1>Provenance — l'outil complet &amp; son workflow</h1>
+  <p class="lead">Application locale de vigilance <strong>LCB-FT</strong> (lutte contre le blanchiment
+  et le financement du terrorisme) pour le marché de l'art. Elle structure la due diligence d'un
+  <strong>acteur</strong>, d'une <strong>œuvre</strong> ou d'une <strong>transaction</strong> —
+  sans jamais se substituer au jugement du professionnel assujetti, ni prétendre authentifier une œuvre.</p>
+  <div class="meta">
+    <span>Next.js 16 · React 19</span>
+    <span>100 % local · coffre chiffré AES-GCM</span>
+    <span>127 tests · CI verte</span>
+    <span>Snapshot GAFI : juin 2026</span>
+    <span>Document généré le 2026-08-11</span>
+  </div>
+</header>
+
+<!-- ============ 1 ============ -->
+<h2 id="vue"><span class="num">01</span>Vue d'ensemble &amp; positionnement</h2>
+<p>Provenance est un <strong>assistant de conformité</strong> destiné aux marchands d'art, galeries et
+intermédiaires — assujettis LCB-FT au titre de l'article <code>L.561-2, 10°</code> du Code monétaire et
+financier. L'outil poursuit trois objectifs :</p>
+<div class="grid3">
+  <div class="card"><h4>Documenter</h4><p class="muted" style="font-size:.9rem">Consigner l'identité des parties,
+  la chaîne de provenance, les vérifications de registres — de façon horodatée et tamper-evident.</p></div>
+  <div class="card"><h4>Interroger de vraies sources</h4><p class="muted" style="font-size:.9rem">Screening
+  sanctions/PPE via un fournisseur réel, liens vers les registres officiels de vol/spoliation, comparables de marché.</p></div>
+  <div class="card"><h4>Structurer la décision</h4><p class="muted" style="font-size:.9rem">Score de risque
+  <em>explicable</em>, pièces à collecter justifiées, projets de gel/déclaration — <strong>l'humain tranche</strong>.</p></div>
+</div>
+<div class="note info"><span class="lbl">Principe fondateur : l'honnêteté</span>
+Aucune capacité forensique n'est inventée. Pas d'« authentification par IA », pas d'analyse d'image, pas de
+faux « rien à signaler ». Quand une donnée n'est pas probante, l'outil l'affiche comme telle
+(<span class="chip neutral">démonstration</span>, <span class="chip high">erreur</span>) plutôt que de rassurer à tort.</div>
+
+<figure>
+  <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Provenance — écran d'accueil</div>
+  <div class="shotwrap"><img src="./assets/02-accueil.png" alt="Écran d'accueil : trois modules"></div>
+  <figcaption><b>Accueil.</b> Trois analyses distinctes et combinables. La barre latérale rappelle en
+  permanence : « 100 % local · chiffré · aucun cloud », avec un bouton pour verrouiller le coffre.</figcaption>
+</figure>
+
+<!-- ============ 2 ============ -->
+<h2 id="contraintes"><span class="num">02</span>Contraintes transversales</h2>
+<p>Ces contraintes gouvernent <em>tout</em> le produit et priment sur les fonctionnalités.</p>
+
+<div class="feat"><div class="ic">🔒</div><div class="bd"><h4>Tout-local, zéro cloud</h4>
+<p>Aucun compte, aucune télémétrie. Les <strong>seules</strong> sorties réseau sont le <em>nom des parties</em>
+(vers le fournisseur de screening) et le <em>nom de l'artiste</em> (vers le fournisseur de marché, si activé),
+avec les clés API du galeriste. Pièces d'identité et photos d'œuvre restent des <code>data-URL</code> jamais transmises.</p></div></div>
+
+<div class="feat"><div class="ic">🛡️</div><div class="bd"><h4>Sécurité au repos</h4>
+<p>Coffre <strong>AES-GCM 256 bits</strong>, clé dérivée par <strong>PBKDF2-SHA256, 210 000 itérations</strong>,
+IV aléatoire de 12 octets à chaque opération. La phrase secrète n'est <strong>jamais stockée</strong> — seule la
+clé dérivée vit en mémoire de session. Le verrouillage la purge. Perte de la phrase = données irrécupérables
+(d'où l'export chiffré).</p></div></div>
+
+<div class="feat"><div class="ic">⚖️</div><div class="bd"><h4>Revue humaine obligatoire</h4>
+<p>Toute synthèse porte l'invariant <code>revueHumaineRequise: true</code>. L'archivage d'un dossier est
+<em>bloqué</em> tant qu'une décision humaine datée et signée n'a pas été prise. Les barèmes et seuils sont
+« indicatifs, à valider par un juriste ».</p></div></div>
+
+<div class="feat"><div class="ic">🧾</div><div class="bd"><h4>Piste d'audit inviolable (détectable)</h4>
+<p>Chaque événement est chaîné par hash SHA-256 au précédent : toute altération est <em>détectable</em>
+(<code>verifyTrail</code>). Ce n'est pas un horodatage légal opposable (RFC 3161 reste une option future).</p></div></div>
+
+<div class="feat"><div class="ic">👤</div><div class="bd"><h4>Minimisation RGPD</h4>
+<p>Approche par les risques : capture minimale, pièces réclamées <em>seulement</em> si le risque l'exige, avec
+motif tracé. Conservation locale chiffrée, effaçable ; rétention 5 ans possible via export chiffré.</p></div></div>
+
+<div class="feat"><div class="ic">🚫</div><div class="bd"><h4>Obligations distinctes, jamais confondues</h4>
+<p>Le <strong>gel des avoirs</strong> (DG Trésor, « sans délai », art. L.562-4) et la <strong>déclaration de
+soupçon</strong> (Tracfin, via ERMES, jamais par e-mail) sont deux obligations séparées. L'outil prépare des
+<em>projets</em> et <strong>n'envoie rien</strong>.</p></div></div>
+
+<!-- ============ 3 ============ -->
+<h2 id="archi"><span class="num">03</span>Architecture &amp; stack technique</h2>
+<div class="grid2">
+<div class="card">
+<h4>Couches</h4>
+<ul>
+<li><strong>src/lib/</strong> — cœur métier pur (scoring, crypto, coffre, screening, registres, audit…), testable sans UI.</li>
+<li><strong>src/components/</strong> — UI React (<code>"use client"</code>), présentation + orchestration locale.</li>
+<li><strong>src/app/</strong> — pages (App Router) + routes API (<code>/api/screening</code>, <code>/api/market</code>).</li>
+</ul>
+</div>
+<div class="card">
+<h4>Stack</h4>
+<ul>
+<li><strong>Next.js 16.2.9</strong>, <strong>React / React-DOM 19.2.4</strong> (App Router).</li>
+<li><strong>@react-pdf/renderer</strong> 4.5 — génération PDF <em>locale</em>.</li>
+<li><strong>Tailwind CSS v4</strong>, TypeScript 5, ESLint 9.</li>
+<li><strong>Vitest</strong> (unitaires) · <strong>Playwright</strong> (E2E Chromium).</li>
+<li><strong>WebCrypto</strong> (<code>crypto.subtle</code>) · persistance <strong>IndexedDB</strong> (repli localStorage).</li>
+</ul>
+</div>
+</div>
+<div class="note"><span class="lbl">Portabilité desktop prévue</span>
+La couche de screening/marché passe par des routes Next au contrat d'E/S stable ; une cible <strong>Tauri</strong>
+(desktop) pourra remplacer ces routes par des commandes Rust équivalentes sans toucher au métier.</div>
+
+<!-- ============ 4 ============ -->
+<h2 id="coffre"><span class="num">04</span>Le coffre chiffré — porte d'entrée obligatoire</h2>
+<p>Rien de l'application n'est rendu tant que le coffre n'est pas déverrouillé. Le composant <code>VaultGate</code>
+décide au montage entre quatre modes : <span class="chip neutral">création</span> (premier lancement),
+<span class="chip neutral">migration</span> (données en clair héritées à chiffrer),
+<span class="chip neutral">déverrouillage</span> (coffre existant) et <span class="chip neutral">prêt</span>.</p>
+<figure>
+  <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; VaultGate — mode création</div>
+  <div class="shotwrap"><img src="./assets/01-coffre.png" alt="Écran de création du coffre chiffré"></div>
+  <figcaption><b>Création du coffre.</b> Phrase secrète (min. 8 caractères) + confirmation. Le pied de page
+  affiche la garantie technique : « Chiffrement AES-GCM 256 · clé dérivée par PBKDF2 · 100 % local ». Un
+  avertissement rappelle que sans la phrase, les données sont irrécupérables.</figcaption>
+</figure>
+<div class="grid2">
+<div class="card"><h4>Ce qui est chiffré</h4><p style="font-size:.9rem">Un <strong>unique blob</strong>
+(<code>{v, salt, iterations, sealed}</code>) contenant l'ensemble <code>{settings, history}</code> — donc
+tous les dossiers, décisions, pièces jointes et la clé API. Persisté sur IndexedDB
+(<code>DB "provenance"</code>, store <code>kv</code>).</p></div>
+<div class="card"><h4>Export / import</h4><p style="font-size:.9rem"><code>exportBlob()</code> produit le blob
+chiffré (sauvegarde hors-machine, rétention 5 ans) ; <code>importBlob(json, phrase)</code> le restaure après
+validation du format et de la phrase. En cas de quota IndexedDB dépassé → <code>StorageFullError</code> explicite.</p></div>
+</div>
+
+<!-- ============ 5 ============ -->
+<h2 id="modules"><span class="num">05</span>Les trois modules de vigilance</h2>
+<p>Chaque module est autonome mais partage le même moteur de risque et la même boucle de clôture
+(<code>CompliancePanel</code> : décision → gel/Tracfin éventuels → audit → PDF → archivage).</p>
+
+<h3 id="acteur">5.1 — Module Acteur <span class="chip neutral">personne · entité</span></h3>
+<p>Vigilance d'une partie (acheteur, vendeur, intermédiaire). Saisie <em>minimale</em> : la date de naissance et
+la nationalité ne servent qu'à désambiguïser le screening. Pour une entité, un éditeur <strong>récursif</strong>
+de bénéficiaires effectifs (UBO) permet de déclarer la cascade de détention ; chaque nœud est screené en profondeur.</p>
+<ul>
+<li><strong>Signaux automatiques</strong> (sourcés, non demandés) : correspondance sanction / PPE / média négatif /
+erreur de screening, risque-pays dérivé du pays <em>et</em> de la nationalité.</li>
+<li><strong>Case « transaction &gt; seuil »</strong> : si cochée pour un acheteur, la pièce d'identité devient
+<em>obligatoire</em> et bloque la création du dossier tant qu'elle manque.</li>
+<li><strong>Sortie</strong> : niveau de vigilance (tier), sous-scores explicables, pièces à collecter justifiées.</li>
+</ul>
+<figure class="tall">
+  <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Module Acteur — dossier créé <span class="scroll-hint">· faites défiler</span></div>
+  <div class="shotwrap"><img src="./assets/04-acteur-resultat.png" alt="Résultat d'un dossier acteur"></div>
+  <figcaption><b>Dossier Client.</b> Un acteur sans signal ressort en <span class="chip low">vigilance simplifiée</span> :
+  aucune pièce intrusive requise. On voit les sous-scores (Sanctions, Juridiction, Transparence, Identité), la carte
+  de screening, les pièces à collecter (ici aucune), les facteurs retenus en clair, puis le panneau « Décision &amp;
+  conformité » avec export PDF.</figcaption>
+</figure>
+
+<h3 id="oeuvre">5.2 — Module Œuvre <span class="chip neutral">provenance</span></h3>
+<p>Due diligence de provenance. <strong>Aucune analyse d'image</strong> : la recherche d'image inversée est menée
+par l'humain (l'outil ouvre Google Lens / TinEye) ; seules les métadonnées EXIF du fichier sont lues. Six volets :</p>
+<ol>
+<li><strong>Identité &amp; preuves</strong> — catégorie (qui adapte la checklist), titre, artiste, année, marques au dos, photo.</li>
+<li><strong>Chaîne de provenance</strong> — un maillon par détenteur, avec qualité de source graduée
+(<span class="chip neutral">aucune → mention → facture → catalogue → archive</span>). Détection des ruptures &gt; 30 ans,
+des incohérences (maillon antérieur à la création) et du trou 1933-1945.</li>
+<li><strong>Registres</strong> — vol (Interpol ID-Art, Art Loss Register, FBI NSAF) et spoliation (Lost Art DB,
+MNR/Rose-Valland, ERR, Central Registry). Liens de recherche pré-remplis ; l'humain <em>constate</em> et consigne.</li>
+<li><strong>Authenticité &amp; titre</strong> — checklist adaptée (catalogue raisonné, certificat, litige, CITES, édition…).</li>
+<li><strong>Cote de l'artiste</strong> — comparables de marché &amp; cohérence de prix (optionnel).</li>
+<li><strong>Indicateurs GAFI</strong> — 5 drapeaux du rapport GAFI 2023 (œuvre « fraîche au marché », réticence…).</li>
+</ol>
+<figure class="tall">
+  <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Module Œuvre — synthèse de provenance <span class="scroll-hint">· faites défiler</span></div>
+  <div class="shotwrap"><img src="./assets/05-oeuvre-resultat.png" alt="Synthèse de provenance d'une œuvre"></div>
+  <figcaption><b>Synthèse de provenance.</b> Sous-scores par volet (Provenance, Spoliation, Vol, Authenticité,
+  Titre, Indicateurs GAFI) et facteurs retenus. Un rappel « Décision humaine requise » précise que la synthèse ne
+  vaut ni authentification, ni garantie d'absence de revendication.</figcaption>
+</figure>
+
+<h3 id="transaction">5.3 — Module Transaction <span class="chip neutral">dossier complet</span></h3>
+<p>Réunit acheteur + (vendeur) + œuvre et <strong>agrège</strong> leurs synthèses, en ajoutant le risque
+purement transactionnel (espèces/crypto, paiement par un tiers, urgence/discrétion). Le montant saisi alimente
+à la fois le seuil de vigilance et le verdict de cohérence de prix de l'œuvre.</p>
+<figure class="tall">
+  <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Module Transaction — dossier agrégé <span class="scroll-hint">· faites défiler</span></div>
+  <div class="shotwrap"><img src="./assets/06-transaction-resultat.png" alt="Synthèse agrégée d'une transaction"></div>
+  <figcaption><b>Dossier transaction.</b> Volets acheteur / vendeur / œuvre empilés, volet « Conditions &amp;
+  comportement » avec le montant, puis la <b>synthèse agrégée</b> : le niveau global est le pire des sous-dossiers,
+  le comportement pouvant le faire monter (jamais descendre).</figcaption>
+</figure>
+
+<!-- ============ 6 ============ -->
+<h2 id="moteur"><span class="num">06</span>Le moteur de risque — barème détaillé</h2>
+<p>Le moteur est <strong>transparent et explicable</strong> : chaque point est justifié par un facteur listé en
+clair. La conversion points → niveau est commune à tout l'outil.</p>
+<div class="note info"><span class="lbl">Statut de validation</span>
+Les <em>obligations</em> outillées s'appuient sur des textes (partie 14). Mais les <strong>points, poids et
+seuils</strong> ci-dessous n'ont <strong>aucun fondement réglementaire</strong> : ce sont des choix heuristiques
+de l'éditeur, à <strong>calibrer et faire valider par un juriste</strong>. Ils sont figés par un test de
+non-régression (<code>bareme.test.ts</code>) pour éviter toute dérive silencieuse doc↔code.</div>
+
+<h3>6.0 — Conversion points → niveau</h3>
+<table>
+<thead><tr><th>Condition</th><th>Niveau</th><th>Base</th></tr></thead>
+<tbody>
+<tr><td>points ≥ 6</td><td><span class="chip high">Risque élevé</span></td><td class="muted">choix éditeur</td></tr>
+<tr><td>points ≥ 3</td><td><span class="chip mid">Vigilance</span></td><td class="muted">choix éditeur</td></tr>
+<tr><td>sinon</td><td><span class="chip low">Faible</span></td><td class="muted">choix éditeur</td></tr>
+</tbody></table>
+
+<h3>6.1 — Sous-scores Acteur</h3>
+<table>
+<thead><tr><th>Facteur</th><th style="width:90px">Points</th><th>Effet</th></tr></thead>
+<tbody>
+<tr><td>Correspondance <strong>sanction</strong></td><td><span class="pts">+100</span></td><td>Force le niveau élevé (blocage à confirmer)</td></tr>
+<tr><td>Personne politiquement exposée (<strong>PPE</strong>)</td><td><span class="pts">+4</span></td><td>Déclenche à lui seul la vigilance renforcée</td></tr>
+<tr><td>Média négatif (adverse media)</td><td><span class="pts">+2</span></td><td>—</td></tr>
+<tr><td>Screening en erreur</td><td><span class="pts">+2</span></td><td>Jamais un faux « clear »</td></tr>
+<tr><td>Juridiction liste <strong>noire</strong> GAFI</td><td><span class="pts">+5</span></td><td>Vigilance renforcée</td></tr>
+<tr><td>Juridiction liste <strong>grise</strong> GAFI</td><td><span class="pts">+3</span></td><td>Standard (renforcée si montant ≥ seuil)</td></tr>
+<tr><td>Entité sans bénéficiaire effectif déclaré</td><td><span class="pts">+3</span></td><td>Opacité</td></tr>
+<tr><td>Chaîne UBO incomplète (cascade opaque)</td><td><span class="pts">+3</span></td><td>Opacité</td></tr>
+<tr><td>Indice d'opacité signalé par le galeriste</td><td><span class="pts">+3</span></td><td>Opacité</td></tr>
+<tr><td>Données d'identification incomplètes</td><td><span class="pts">+1</span></td><td>—</td></tr>
+</tbody></table>
+
+<h3>6.2 — Niveau de vigilance (tier) &amp; pièces réclamées</h3>
+<div class="grid2">
+<div class="card"><h4>Déclenchement</h4><ul style="font-size:.88rem">
+<li><span class="chip high">Renforcée</span> si : sanction <em>ou</em> PPE <em>ou</em> liste noire <em>ou</em>
+(liste grise <em>et</em> montant ≥ seuil) <em>ou</em> (montant ≥ seuil <em>et</em> opacité).</li>
+<li><span class="chip mid">Standard</span> si : montant ≥ seuil <em>ou</em> liste grise <em>ou</em> média
+<em>ou</em> opacité <em>ou</em> erreur.</li>
+<li><span class="chip low">Simplifiée</span> sinon.</li>
+</ul></div>
+<div class="card"><h4>Pièces à collecter</h4><ul style="font-size:.88rem">
+<li><span class="chip low">Simplifiée</span> → <strong>aucune</strong> pièce intrusive.</li>
+<li><span class="chip mid">Standard</span> → pièce d'identité / Kbis.</li>
+<li><span class="chip high">Renforcée</span> → + origine des fonds (+ documentation UBO si entité).</li>
+</ul></div>
+</div>
+
+<h3>6.4 — Sous-scores Œuvre</h3>
+<table>
+<thead><tr><th>Facteur</th><th style="width:90px">Points</th></tr></thead>
+<tbody>
+<tr><td>Aucune provenance</td><td><span class="pts">+3</span></td></tr>
+<tr><td>Provenance d'un seul maillon</td><td><span class="pts">+2</span></td></tr>
+<tr><td>Maillon à source faible/absente (par maillon)</td><td><span class="pts">+1</span></td></tr>
+<tr><td>Rupture &gt; 30 ans entre maillons</td><td><span class="pts">+2</span></td></tr>
+<tr><td>Maillon antérieur à la création (incohérence)</td><td><span class="pts">+3</span></td></tr>
+<tr><td>Première apparition publique non documentée</td><td><span class="pts">+1</span></td></tr>
+<tr><td>Correspondance registre <strong>spoliation</strong></td><td><span class="pts">+100</span></td></tr>
+<tr><td>Trou de provenance 1933-1945 (œuvre ≤ 1945)</td><td><span class="pts">+4</span></td></tr>
+<tr><td>Correspondance registre <strong>vol</strong></td><td><span class="pts">+100</span></td></tr>
+<tr><td>Registre non vérifié (par registre)</td><td><span class="pts">+1</span></td></tr>
+<tr><td>Question authenticité/titre non renseignée</td><td><span class="pts">+1</span></td></tr>
+<tr><td>Question authenticité/titre — drapeau levé</td><td><span class="pts">+1 à +3</span></td></tr>
+</tbody></table>
+
+<h3>6.5 &amp; 6.6 — Indicateurs GAFI &amp; comportement transactionnel</h3>
+<div class="grid2">
+<div class="card"><h4>Indicateurs GAFI (œuvre)</h4><table style="margin:6px 0">
+<tr><td>Œuvre « fraîche au marché »</td><td class="pts">2</td></tr>
+<tr><td>Réticence à divulguer le précédent propriétaire</td><td class="pts">3</td></tr>
+<tr><td>Prix manifestement incohérent</td><td class="pts">2</td></tr>
+<tr><td>Structure opaque / intermédiaire anonyme</td><td class="pts">3</td></tr>
+<tr><td>Œuvre réapparue après perte/vol puis radiation</td><td class="pts">3</td></tr>
+</table></div>
+<div class="card"><h4>Comportement (transaction)</h4><table style="margin:6px 0">
+<tr><td>Espèces / crypto au-delà des seuils</td><td class="pts">3</td></tr>
+<tr><td>Paiement par un tiers non partie</td><td class="pts">3</td></tr>
+<tr><td>Urgence / discrétion / prix incohérent</td><td class="pts">2</td></tr>
+</table>
+<p style="font-size:.82rem" class="muted">Agrégation : niveau = pire des volets ; le comportement peut monter
+(≥ 6 → élevé ; ≥ 3 → au moins vigilance), jamais baisser.</p></div>
+</div>
+
+<!-- ============ 7 ============ -->
+<h2 id="gafi"><span class="num">07</span>Référentiel GAFI &amp; garde-fou de péremption</h2>
+<p>Le risque-pays est <strong>dérivé</strong> du texte saisi (tolérant aux accents, à la casse, aux variantes)
+plutôt que demandé au galeriste — une question intrusive de moins. Le référentiel est un <em>snapshot</em>
+figé dans le code.</p>
+<div class="grid2">
+<div class="card"><h4>Listes (plénière du 19 juin 2026)</h4>
+<p style="font-size:.9rem"><span class="chip high">Liste noire</span> (appel à l'action) : Corée du Nord, Iran, Myanmar.<br>
+<span class="chip mid">Liste grise</span> (surveillance renforcée) : 22 juridictions dont Monaco, Bulgarie, Venezuela,
+Bolivie, Koweït, Irak, Bosnie-Herzégovine, Îles Vierges britanniques…</p></div>
+<div class="card"><h4>Garde-fou <code>isGafiSnapshotStale</code></h4>
+<p style="font-size:.9rem">Le GAFI révise ses listes ~3×/an (février / juin / octobre). Au-delà de
+<strong>8 mois</strong> (≈ 2 plénières), la page Paramètres affiche un bandeau rouge de péremption.
+La mise à jour reste <strong>manuelle</strong> dans le code — le garde-fou alerte, il ne corrige pas seul.</p></div>
+</div>
+<div class="note ok"><span class="lbl">Correction récente</span>
+Le snapshot était figé à « février 2025 » et classait mal 15 pays (faux positifs Nigéria/Afrique du Sud/Algérie…,
+faux négatifs Bolivie/Îles Vierges britanniques/Koweït/PNG/Bosnie/Irak). Il a été actualisé à la plénière de
+juin 2026 et doté du garde-fou de péremption.</div>
+
+<!-- ============ 8 ============ -->
+<h2 id="screening"><span class="num">08</span>Screening des sanctions &amp; gestion des faux positifs</h2>
+<p>Le screening s'effectue via la route <code>POST /api/screening</code>, qui ne conserve aucune donnée.</p>
+<table>
+<thead><tr><th>Statut</th><th>Signification</th></tr></thead>
+<tbody>
+<tr><td><span class="chip high">sanction</span></td><td>Correspondance sur une liste de gel/sanctions → obligation potentielle de gel</td></tr>
+<tr><td><span class="chip mid">ppe</span></td><td>Personne politiquement exposée</td></tr>
+<tr><td><span class="chip mid">media</span></td><td>Présence en médias négatifs (adverse media)</td></tr>
+<tr><td><span class="chip low">clear</span></td><td>Aucune correspondance sur les listes interrogées</td></tr>
+<tr><td><span class="chip high">error</span></td><td>Appel impossible — jamais transformé en faux « clear »</td></tr>
+<tr><td><span class="chip neutral">demo</span></td><td>Sans clé API : résultat <strong>explicitement NON probant</strong></td></tr>
+</tbody></table>
+<div class="grid2">
+<div class="card"><h4>Fournisseurs réels</h4><p style="font-size:.9rem"><strong>Sanctions.io</strong>
+(<code>min_score 0.85</code>, désambiguïsation date/nationalité) et <strong>OpenSanctions</strong>
+(schéma Person/Organization, topics → Sanction/PEP). Un connecteur <code>custom</code> compatible est prévu.</p></div>
+<div class="card"><h4>Faux positifs tracés</h4><p style="font-size:.9rem">Un match homonyme peut être
+<strong>écarté avec justification</strong> : il reste visible (barré) mais sort du calcul, et l'action est
+journalisée (<code>match_ecarte</code>). Le recalcul du statut effectif est partagé entre la route et le client
+(<code>classifyMatches</code>).</p></div>
+</div>
+<div class="note info"><span class="lbl">Cascade UBO</span>
+Pour une entité, <code>collectBeneficiarySubjects</code> aplatit récursivement l'arbre des bénéficiaires : chaque
+personne <em>et</em> chaque entité intermédiaire est screenée, en profondeur.</div>
+
+<!-- ============ 9 ============ -->
+<h2 id="aval"><span class="num">09</span>Obligations aval : pièces, gel, déclaration, rapport</h2>
+<div class="grid2">
+<div class="card"><h4>📄 Demande de pièces</h4><p style="font-size:.9rem"><code>buildRequestLetter</code> génère un
+courrier neutre, justifié par l'obligation LCB-FT (mailto / copie / <code>.txt</code>). Évite l'interrogatoire oral.
+Le galeriste l'envoie lui-même.</p></div>
+<div class="card"><h4>❄️ Gel des avoirs</h4><p style="font-size:.9rem">Sur correspondance sanction,
+<code>buildFreezeNotice</code> prépare un projet de notification DG Trésor, rappelant le gel « sans délai »
+(L.562-4) et l'obligation de <strong>confirmer dans le registre national</strong>. L'outil n'envoie rien.</p></div>
+<div class="card"><h4>🕵️ Déclaration de soupçon</h4><p style="font-size:.9rem"><code>buildTracfinDraft</code>
+génère un <em>projet</em> de DS structuré à partir des facteurs retenus, en rappelant qu'une DS ne se transmet
+<strong>jamais par e-mail</strong> mais via <strong>ERMES</strong>.</p></div>
+<div class="card"><h4>🖨️ Rapport PDF</h4><p style="font-size:.9rem"><code>downloadReport</code> produit un PDF
+local (<code>@react-pdf/renderer</code>) par type de dossier. Formulations honnêtes imposées : jamais
+« authentifié par IA » ni « certifié conforme » ; disclaimer de décision humaine ; aucune donnée transmise.</p></div>
+</div>
+
+<!-- ============ 10 ============ -->
+<h2 id="audit"><span class="num">10</span>Piste d'audit chaînée (tamper-evident)</h2>
+<p>Chaque action significative (création de dossier, screening, écartement d'un match, décision, ajout de pièce…)
+ajoute un événement <code>{seq, horodatage, type, detail, hashPrec, hash}</code> où le hash SHA-256 intègre celui
+de l'événement précédent (à partir d'un <code>GENESIS</code>). Le composant <code>AuditTimeline</code> vérifie
+l'intégrité de la chaîne au montage et affiche « ✓ intégrité vérifiée » ou « ⚠ chaîne altérée ».</p>
+<div class="note"><span class="lbl">Portée honnête</span>
+L'intégrité est <em>détectable</em> (on sait si la chaîne a été modifiée), mais ce n'est pas un horodatage légal
+opposable. Un horodatage qualifié (RFC 3161) reste une évolution possible.</div>
+
+<!-- ============ 11 ============ -->
+<h2 id="historique"><span class="num">11</span>Historique local &amp; vigilance continue</h2>
+<p>Les dossiers clôturés sont archivés <strong>uniquement en local</strong> (dans le coffre chiffré). L'historique
+permet de rouvrir un dossier (il réhydrate l'écran d'origine), de régénérer son PDF, ou de le supprimer.</p>
+<figure>
+  <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Historique local</div>
+  <div class="shotwrap"><img src="./assets/07-historique.png" alt="Historique local des dossiers"></div>
+  <figcaption><b>Historique.</b> Chaque dossier archivé est listé avec son niveau et sa date. Un badge
+  « À revoir » apparaît une fois l'intervalle de revue dépassé.</figcaption>
+</figure>
+<div class="note info"><span class="lbl">Re-screening en un clic</span>
+Passé l'intervalle configuré (défaut 12 mois), <code>vigilanceDue</code> marque le dossier « À revoir ».
+Le bouton <strong>Re-screener</strong> relance le screening de l'acteur (et de ses UBO), ré-agrège une transaction,
+journalise deux événements chaînés et <strong>signale toute aggravation</strong> par rapport à l'état précédent.
+Les dossiers « œuvre » (sans acteur) n'y sont pas soumis.</div>
+
+<!-- ============ 12 ============ -->
+<h2 id="parametres"><span class="num">12</span>Paramètres &amp; confidentialité</h2>
+<figure class="tall">
+  <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Paramètres <span class="scroll-hint">· faites défiler</span></div>
+  <div class="shotwrap"><img src="./assets/08-parametres.png" alt="Page des paramètres"></div>
+  <figcaption><b>Paramètres.</b> Identité de la galerie, fournisseur &amp; clé de screening, intervalle de revue,
+  <b>bandeau de fraîcheur des listes GAFI</b> (vert « à jour » / rouge « périmé »), fournisseur de marché optionnel,
+  sauvegarde chiffrée (export/import <code>.vault</code>), et un rappel « Zéro cloud ».</figcaption>
+</figure>
+
+<!-- ============ 13 ============ -->
+<h2 id="workflow"><span class="num">13</span>Le workflow complet, de bout en bout</h2>
+<ol class="flow">
+<li><h4>Déverrouillage du coffre</h4><p>Création (phrase ≥ 8 car.), migration des données en clair, ou
+déverrouillage. Rien n'est rendu avant.</p></li>
+<li><h4>Configuration</h4><p>Galerie, fournisseur + clé de screening, intervalle de revue, fournisseur de marché
+optionnel, première sauvegarde chiffrée.</p></li>
+<li><h4>Choix du module &amp; saisie minimale</h4><p>Acteur, Œuvre ou Transaction. Approche par les risques :
+on ne demande que le nécessaire.</p></li>
+<li><h4>Analyse</h4><p>Screening réel/démo + cascade UBO + assessment (<code>assessActor</code> /
+<code>assessArtwork</code> / <code>aggregateTransaction</code>) → sous-scores, tier, pièces, facteurs.</p></li>
+<li><h4>Traitement des faux positifs</h4><p>Écarter/rétablir un match avec justification (recalcul + journalisation).</p></li>
+<li><h4>Collecte des pièces</h4><p>Demande pré-remplie générée si le risque l'exige (mailto / copie / <code>.txt</code>).</p></li>
+<li><h4>Clôture (CompliancePanel)</h4><p>Décision humaine ; si gel → projet DG Trésor ; si soupçon / niveau
+élevé → projet Tracfin ; piste d'audit vérifiée ; export PDF.</p></li>
+<li><h4>Archivage</h4><p>Enregistrement local chiffré — <strong>bloqué</strong> tant qu'aucune décision n'est prise.</p></li>
+<li><h4>Vigilance continue</h4><p>Badge « À revoir » après l'intervalle → re-screening, ré-agrégation,
+journalisation, alerte d'aggravation.</p></li>
+</ol>
+
+<!-- ============ 14 ============ -->
+<h2 id="juridique"><span class="num">14</span>Cadre juridique outillé</h2>
+<p>Les obligations ci-dessous ont été confrontées aux sources primaires (Légifrance / EUR-Lex / DG Trésor / GAFI).
+Cette vérification <strong>appuie la décision d'un juriste — elle ne constitue pas un avis juridique.</strong></p>
+<table>
+<thead><tr><th>#</th><th>Ce que fait l'outil</th><th>Référence</th><th>Statut</th></tr></thead>
+<tbody>
+<tr><td>A1</td><td>Assujettissement marchand/galerie/intermédiaire</td><td><code>L.561-2, 10°</code> CMF</td><td><span class="chip low">Correct</span></td></tr>
+<tr><td>A2</td><td>Seuil de vigilance 10 000 € (transaction ou série liée)</td><td><code>L.561-2, 10°</code> (loi, pas un R.561-x)</td><td><span class="chip mid">À préciser</span></td></tr>
+<tr><td>A3</td><td>Vigilance graduée / PPE</td><td>PPE = <code>L.561-10, 1°</code> (pas L.561-10-1)</td><td><span class="chip high">Corrigé (fond)</span></td></tr>
+<tr><td>A4</td><td>Pays tiers à haut risque</td><td><code>L.561-10, 3°</code> + règl. (UE) 2016/1675</td><td><span class="chip mid">À préciser</span></td></tr>
+<tr><td>A5</td><td>Conservation 5 ans</td><td><code>L.561-12</code> (fin de relation <em>ou</em> exécution)</td><td><span class="chip mid">À compléter</span></td></tr>
+<tr><td>A6</td><td>Déclaration de soupçon (ERMES)</td><td><code>L.561-15</code> ; arrêté 23/01/2025</td><td><span class="chip low">Correct</span></td></tr>
+<tr><td>A7</td><td>Gel des avoirs sans délai</td><td><code>L.562-4</code> (vs L.562-2 décision)</td><td><span class="chip low">Correct</span></td></tr>
+<tr><td>A8</td><td>Indicateurs marché de l'art</td><td>Rapport GAFI, 27 fév. 2023 (typologies)</td><td><span class="chip low">Correct</span></td></tr>
+</tbody></table>
+<div class="note warn"><span class="lbl">Le seul verrou restant est humain</span>
+Avant toute mise en production défendable, un <strong>avocat LCB-FT</strong> doit (1) valider/calibrer les poids
+et seuils de la partie 6 (aucun fondement réglementaire) et (2) confirmer les corrections d'articles CMF
+ci-dessus. Le détail sourcé (avec URLs Légifrance) figure dans <code>BAREME_A_VALIDER.md</code>.</div>
+
+<!-- ============ 15 ============ -->
+<h2 id="tests"><span class="num">15</span>Qualité : tests &amp; intégration continue</h2>
+<div class="grid3">
+<div class="card"><h4>127 tests unitaires</h4><p style="font-size:.88rem">Vitest — scoring, crypto, coffre,
+juridictions, marché, audit, monitoring, registres, routes API…</p></div>
+<div class="card"><h4>4 parcours E2E</h4><p style="font-size:.88rem">Playwright (Chromium) : coffre, acteur,
+œuvre, transaction — parcours réels dans un navigateur.</p></div>
+<div class="card"><h4>Verrou du barème</h4><p style="font-size:.88rem"><code>bareme.test.ts</code> fige chaque
+valeur chiffrée : toute dérive doc↔code casse la CI.</p></div>
+</div>
+<p>La CI GitHub Actions exécute à chaque push deux jobs parallèles : <code>verify</code> (lint + tests + build)
+et <code>e2e</code> (Playwright + rapport HTML archivé).</p>
+
+<!-- ============ 16 ============ -->
+<h2 id="limites"><span class="num">16</span>Limites connues &amp; feuille de route</h2>
+<ul>
+<li><strong>Extraction d'années par regex</strong> — ne comprend pas « circa 1940 », « XIXᵉ siècle » : le contrôle
+spoliation 1933-1945 et les ruptures peuvent passer à côté.</li>
+<li><strong>Screening sur le nom</strong> — faux positifs/négatifs d'homonymie ; la désambiguïsation dépend du fournisseur.</li>
+<li><strong>Snapshot GAFI manuel</strong> — actualisé à juin 2026, garde-fou de péremption, mais mise à jour à refaire à chaque plénière.</li>
+<li><strong>Comparables de marché non archivés</strong> — l'humain reporte sa conclusion via l'indicateur prix.</li>
+<li><strong>Barème non validé juridiquement</strong> — c'est le verrou bloquant pour une mise en prod défendable.</li>
+</ul>
+<p class="muted">Évolutions envisagées : horodatage qualifié RFC 3161, portage desktop Tauri, connecteurs de
+marché supplémentaires, parsing de dates enrichi, actualisation semi-automatique des listes GAFI.</p>
+
+<div class="foot">
+  <strong>Provenance</strong> — dossier technique &amp; fonctionnel · généré le 2026-08-11.<br>
+  Document de synthèse ; en cas de divergence, le code (<code>src/</code>) et <code>BAREME_A_VALIDER.md</code>
+  font foi. Cet outil est une aide à la vigilance LCB-FT et n'engage pas la conformité du professionnel assujetti,
+  qui reste seul responsable de sa décision.
+</div>
+
+</main>
+</div>
+</body>
+</html>
