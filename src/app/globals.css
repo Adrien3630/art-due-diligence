@@ -1,26 +1,129 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+  ────────────────────────────────────────────────────────────
+  Charte graphique « Galerie d'art »
+  Ivoire chaud · encre profonde · un seul accent bronze/or.
+  Beaucoup de blanc, filets fins, typographie serif élégante.
+  ────────────────────────────────────────────────────────────
+*/
+
+@theme {
+  /* Couleurs de fond / surfaces */
+  --color-bg: #f7f4ee;        /* ivoire chaud, fond général */
+  --color-surface: #ffffff;   /* cartes, panneaux */
+  --color-surface-2: #fbf9f4; /* surface secondaire légère */
+
+  /* Encre / textes */
+  --color-ink: #17140f;       /* presque noir, chaud */
+  --color-ink-soft: #4a443b;  /* texte secondaire */
+  --color-muted: #8d8678;     /* libellés discrets */
+
+  /* Filets & accents */
+  --color-line: #e7e1d4;      /* hairline borders */
+  --color-line-strong: #d8d0bf;
+  --color-gold: #9a7b4f;      /* accent bronze/or, restreint */
+  --color-gold-soft: #c9b38a;
+
+  /* Sémantique risque (sobre, jamais criard) */
+  --color-risk-low: #3f7a57;
+  --color-risk-low-bg: #eef3ee;
+  --color-risk-mid: #b8862e;
+  --color-risk-mid-bg: #f6efdf;
+  --color-risk-high: #a23b3b;
+  --color-risk-high-bg: #f6eaea;
+
+  /* Typographies (les variables --font-* viennent de next/font) */
+  --font-serif: var(--font-playfair), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+
+  /* Rayons */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Titres en serif par défaut pour l'aura « galerie » */
+h1,
+h2,
+h3,
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+/* Libellés de champs : petites capitales espacées */
+.label-eyebrow {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+/* Filet décoratif fin sous les titres de section */
+.rule-gold {
+  height: 1px;
+  background: linear-gradient(to right, var(--color-gold-soft), transparent);
+}
+
+/* Micro-animation d'apparition, fluide et discrète */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rise {
+  animation: rise 0.3s ease-out both;
+}
+
+/* Champs de saisie — style fin, sans lourdeur */
+.input-line {
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.7rem;
+  font-size: 0.9rem;
+  color: var(--color-ink);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.input-line::placeholder {
+  color: var(--color-muted);
+}
+
+.input-line:focus {
+  outline: none;
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 3px rgba(154, 123, 79, 0.12);
+}
+
+/* Scrollbar discrète */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line-strong);
+  border-radius: 999px;
+  border: 3px solid var(--color-bg);
 }
