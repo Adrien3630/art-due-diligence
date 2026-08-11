@@ -31,11 +31,10 @@ function screeningsOf(dossier: Dossier): ScreeningResult[] {
     return [dossier.screening, ...dossier.beneficiairesScreening];
   }
   if (dossier.kind === "transaction") {
-    const out = [dossier.acheteur.screening, ...dossier.acheteur.beneficiairesScreening];
-    if (dossier.vendeur) {
-      out.push(dossier.vendeur.screening, ...dossier.vendeur.beneficiairesScreening);
-    }
-    return out;
+    // Seules les parties présentes selon le mode (acheteur et/ou vendeur).
+    return [dossier.acheteur, dossier.vendeur]
+      .filter((p): p is NonNullable<typeof p> => p != null)
+      .flatMap((p) => [p.screening, ...p.beneficiairesScreening]);
   }
   return []; // œuvre : aucun acteur screené
 }

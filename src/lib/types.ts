@@ -341,11 +341,23 @@ export interface TransactionParty {
   assessment: ActorAssessment;
 }
 
-/** Dossier de transaction : agrège acheteur + vendeur + œuvre. */
+/**
+ * Nature de l'opération, qui détermine les parties réellement évaluées :
+ *  • vente          : galerie/stock → acheteur (seul l'acheteur est évalué) ;
+ *  • achat          : vendeur → galerie/stock (seul le vendeur est évalué) ;
+ *  • intermediation : vendeur → acheteur (les deux sont évalués).
+ * Dans les modes vente/achat, la galerie est sa propre contrepartie et n'est
+ * donc pas « screenée ».
+ */
+export type TransactionMode = "vente" | "achat" | "intermediation";
+
+/** Dossier de transaction : agrège les parties présentes + œuvre. */
 export interface TransactionDossier extends DossierBase {
   kind: "transaction";
+  mode: TransactionMode;
   montantEur: number | null;
-  acheteur: TransactionParty;
+  // Nullable selon le mode : `achat` n'a pas d'acheteur, `vente` pas de vendeur.
+  acheteur: TransactionParty | null;
   vendeur: TransactionParty | null;
   oeuvre: { artwork: Artwork; assessment: ArtworkAssessment };
   comportement: AuditAnswer[]; // risque transactionnel (espèces, urgence…)

@@ -136,11 +136,15 @@ export async function rescreenDossier(
     updated = { ...dossier, ...r, derniereRevue: now };
   } else if (dossier.kind === "transaction") {
     const ctx = { seuilVigilanceEur: settings.seuilVigilanceEur, montantEur: dossier.montantEur };
-    const ach = await rescreenParty(dossier.acheteur.actor, cred, ctx);
-    aggrave =
-      diff("Acheteur", dossier.acheteur.screening.status, ach.screening.status, changements) ||
-      aggrave;
-    const acheteur: TransactionParty = { ...dossier.acheteur, ...ach };
+
+    let acheteur = dossier.acheteur;
+    if (dossier.acheteur) {
+      const ach = await rescreenParty(dossier.acheteur.actor, cred, ctx);
+      aggrave =
+        diff("Acheteur", dossier.acheteur.screening.status, ach.screening.status, changements) ||
+        aggrave;
+      acheteur = { ...dossier.acheteur, ...ach };
+    }
 
     let vendeur = dossier.vendeur;
     if (dossier.vendeur) {
@@ -153,7 +157,7 @@ export async function rescreenDossier(
 
     const agg = aggregateTransaction({
       montantEur: dossier.montantEur,
-      acheteur: acheteur.assessment,
+      acheteur: acheteur?.assessment ?? null,
       vendeur: vendeur?.assessment ?? null,
       oeuvre: dossier.oeuvre.assessment,
       comportement: dossier.comportement,
