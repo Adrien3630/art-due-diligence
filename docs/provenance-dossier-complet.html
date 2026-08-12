@@ -163,11 +163,19 @@
   <div class="meta">
     <span>Next.js 16 · React 19</span>
     <span>100 % local · coffre chiffré AES-GCM</span>
-    <span>127 tests · CI verte</span>
+    <span>155 tests · 4 E2E · CI verte</span>
     <span>Snapshot GAFI : juin 2026</span>
-    <span>Document généré le 2026-08-11</span>
+    <span>Mis à jour le 2026-08-12</span>
   </div>
 </header>
+
+<div class="note ok" style="margin:0 0 8px"><span class="lbl">Évolutions récentes (août 2026)</span>
+Sept améliorations intégrées, toutes conformes aux principes fondateurs (tout-local, registres honnêtes,
+aucune analyse d'image, revue humaine) : <strong>parser de dates floues</strong> (anti faux-négatif spoliation),
+<strong>références CMF distinctes PPE / pays tiers</strong> + <strong>disclaimer de responsabilité pénale</strong>,
+<strong>modes de transaction</strong> (vente / achat / intermédiation), <strong>rappel CI de péremption GAFI</strong>,
+<strong>ouverture groupée des registres</strong>, <strong>rappel &amp; priorisation de la vigilance</strong>,
+et <strong>OCR local assisté</strong> des pièces.</div>
 
 <!-- ============ 1 ============ -->
 <h2 id="vue"><span class="num">01</span>Vue d'ensemble &amp; positionnement</h2>
@@ -209,10 +217,12 @@ IV aléatoire de 12 octets à chaque opération. La phrase secrète n'est <stron
 clé dérivée vit en mémoire de session. Le verrouillage la purge. Perte de la phrase = données irrécupérables
 (d'où l'export chiffré).</p></div></div>
 
-<div class="feat"><div class="ic">⚖️</div><div class="bd"><h4>Revue humaine obligatoire</h4>
+<div class="feat"><div class="ic">⚖️</div><div class="bd"><h4>Revue humaine obligatoire &amp; responsabilité pénale</h4>
 <p>Toute synthèse porte l'invariant <code>revueHumaineRequise: true</code>. L'archivage d'un dossier est
 <em>bloqué</em> tant qu'une décision humaine datée et signée n'a pas été prise. Les barèmes et seuils sont
-« indicatifs, à valider par un juriste ».</p></div></div>
+« indicatifs, à valider par un juriste ». <span class="chip low">nouveau</span> Un rappel explicite — à la clôture
+<em>et</em> dans le rapport PDF — précise que l'assujetti reste <strong>personnellement et pénalement
+responsable</strong> ; l'outil assiste, il n'exonère pas.</p></div></div>
 
 <div class="feat"><div class="ic">🧾</div><div class="bd"><h4>Piste d'audit inviolable (détectable)</h4>
 <p>Chaque événement est chaîné par hash SHA-256 au précédent : toute altération est <em>détectable</em>
@@ -290,6 +300,10 @@ de bénéficiaires effectifs (UBO) permet de déclarer la cascade de détention 
 erreur de screening, risque-pays dérivé du pays <em>et</em> de la nationalité.</li>
 <li><strong>Case « transaction &gt; seuil »</strong> : si cochée pour un acheteur, la pièce d'identité devient
 <em>obligatoire</em> et bloque la création du dossier tant qu'elle manque.</li>
+<li><strong>OCR local assisté</strong> <span class="chip low">nouveau</span> : une fois la pièce déposée, un bouton
+« Analyser la pièce » lit le document <em>dans le navigateur</em> (tesseract.js — l'image ne quitte jamais la machine)
+et <strong>propose</strong> des champs (nom, prénoms, naissance, nationalité ; ou raison sociale + SIREN pour une entité).
+Les champs sont <strong>éditables</strong> et ne s'appliquent qu'à votre validation — jamais d'autofill silencieux.</li>
 <li><strong>Sortie</strong> : niveau de vigilance (tier), sous-scores explicables, pièces à collecter justifiées.</li>
 </ul>
 <figure class="tall">
@@ -308,13 +322,25 @@ par l'humain (l'outil ouvre Google Lens / TinEye) ; seules les métadonnées EXI
 <li><strong>Identité &amp; preuves</strong> — catégorie (qui adapte la checklist), titre, artiste, année, marques au dos, photo.</li>
 <li><strong>Chaîne de provenance</strong> — un maillon par détenteur, avec qualité de source graduée
 (<span class="chip neutral">aucune → mention → facture → catalogue → archive</span>). Détection des ruptures &gt; 30 ans,
-des incohérences (maillon antérieur à la création) et du trou 1933-1945.</li>
+des incohérences (maillon antérieur à la création) et du trou 1933-1945. <span class="chip low">amélioré</span>
+Les <strong>dates floues</strong> (« vers 1941 », « années 40 », « milieu du XXᵉ siècle », « XVIIᵉ siècle ») sont
+désormais interprétées de façon prudente pour ne pas rater ce trou.</li>
 <li><strong>Registres</strong> — vol (Interpol ID-Art, Art Loss Register, FBI NSAF) et spoliation (Lost Art DB,
-MNR/Rose-Valland, ERR, Central Registry). Liens de recherche pré-remplis ; l'humain <em>constate</em> et consigne.</li>
+MNR/Rose-Valland, ERR, Central Registry). Liens de recherche pré-remplis ; l'humain <em>constate</em> et consigne.
+<span class="chip low">nouveau</span> Un <strong>compteur « X/N vérifiés »</strong> et un bouton d'<strong>ouverture
+groupée</strong> (« Ouvrir les N recherches à vérifier ») fluidifient le travail — sans jamais cocher « aucun match »
+à votre place.</li>
 <li><strong>Authenticité &amp; titre</strong> — checklist adaptée (catalogue raisonné, certificat, litige, CITES, édition…).</li>
 <li><strong>Cote de l'artiste</strong> — comparables de marché &amp; cohérence de prix (optionnel).</li>
 <li><strong>Indicateurs GAFI</strong> — 5 drapeaux du rapport GAFI 2023 (œuvre « fraîche au marché », réticence…).</li>
 </ol>
+<figure class="tall">
+  <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Module Œuvre — formulaire &amp; vérifications registres <span class="scroll-hint">· faites défiler</span></div>
+  <div class="shotwrap"><img src="./assets/10-oeuvre-registres.png" alt="Formulaire œuvre avec le compteur et l'ouverture groupée des registres"></div>
+  <figcaption><b>Volet registres.</b> Le compteur <b>« 0/6 vérifié »</b> et le bouton « Ouvrir les N recherches à
+  vérifier » de chaque colonne (œuvres volées / spoliations) accélèrent la vérification, tout en laissant
+  l'humain constater et consigner le résultat.</figcaption>
+</figure>
 <figure class="tall">
   <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Module Œuvre — synthèse de provenance <span class="scroll-hint">· faites défiler</span></div>
   <div class="shotwrap"><img src="./assets/05-oeuvre-resultat.png" alt="Synthèse de provenance d'une œuvre"></div>
@@ -327,6 +353,25 @@ MNR/Rose-Valland, ERR, Central Registry). Liens de recherche pré-remplis ; l'hu
 <p>Réunit acheteur + (vendeur) + œuvre et <strong>agrège</strong> leurs synthèses, en ajoutant le risque
 purement transactionnel (espèces/crypto, paiement par un tiers, urgence/discrétion). Le montant saisi alimente
 à la fois le seuil de vigilance et le verdict de cohérence de prix de l'œuvre.</p>
+<p><span class="chip low">nouveau</span> Un <strong>sélecteur de nature d'opération</strong> détermine les parties
+réellement évaluées, et donc les pièces demandées et le contenu du rapport :</p>
+<div class="grid3">
+  <div class="card"><h4>Vente</h4><p class="muted" style="font-size:.88rem">Galerie → acheteur. Seuls
+  l'<strong>acheteur</strong> et l'œuvre sont évalués.</p></div>
+  <div class="card"><h4>Achat</h4><p class="muted" style="font-size:.88rem">Vendeur → galerie. Seuls
+  le <strong>vendeur</strong> et l'œuvre sont évalués.</p></div>
+  <div class="card"><h4>Intermédiation</h4><p class="muted" style="font-size:.88rem">Vendeur → acheteur.
+  <strong>Les deux parties</strong> + l'œuvre sont évaluées.</p></div>
+</div>
+<p class="muted" style="font-size:.9rem">En vente/achat, la galerie est sa propre contrepartie et n'est pas
+screenée. L'agrégation prend le pire des sous-scores <em>parmi les parties présentes</em>, sans pénalité pour une
+partie absente.</p>
+<figure class="tall">
+  <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Module Transaction — sélecteur de mode <span class="scroll-hint">· faites défiler</span></div>
+  <div class="shotwrap"><img src="./assets/09-transaction-mode.png" alt="Sélecteur de mode d'opération de la transaction"></div>
+  <figcaption><b>Nature de l'opération.</b> Le mode (ici « Vente ») affiche uniquement la carte Acheteur ; en
+  « Achat » ce serait la carte Vendeur ; en « Intermédiation », les deux.</figcaption>
+</figure>
 <figure class="tall">
   <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Module Transaction — dossier agrégé <span class="scroll-hint">· faites défiler</span></div>
   <div class="shotwrap"><img src="./assets/06-transaction-resultat.png" alt="Synthèse agrégée d'une transaction"></div>
@@ -437,6 +482,11 @@ Bolivie, Koweït, Irak, Bosnie-Herzégovine, Îles Vierges britanniques…</p></
 <strong>8 mois</strong> (≈ 2 plénières), la page Paramètres affiche un bandeau rouge de péremption.
 La mise à jour reste <strong>manuelle</strong> dans le code — le garde-fou alerte, il ne corrige pas seul.</p></div>
 </div>
+<div class="note info"><span class="lbl">Rappel automatisé en CI <span class="chip low">nouveau</span></span>
+Un job GitHub Actions <strong>mensuel</strong> (<code>gafi-reminder.yml</code>) réutilise <code>isGafiSnapshotStale</code>
+et, si le snapshot est périmé, <strong>ouvre une issue de rappel</strong> (anti-doublon) décrivant la procédure de
+mise à jour. Choix assumé : l'outil <strong>n'écrit jamais</strong> de liste juridique automatiquement (le site du
+GAFI bloque les bots, et une liste non vérifiée serait dangereuse) — il alerte, un humain met à jour et ouvre une PR.</div>
 <div class="note ok"><span class="lbl">Correction récente</span>
 Le snapshot était figé à « février 2025 » et classait mal 15 pays (faux positifs Nigéria/Afrique du Sud/Algérie…,
 faux négatifs Bolivie/Îles Vierges britanniques/Koweït/PNG/Bosnie/Irak). Il a été actualisé à la plénière de
@@ -510,6 +560,11 @@ Passé l'intervalle configuré (défaut 12 mois), <code>vigilanceDue</code> marq
 Le bouton <strong>Re-screener</strong> relance le screening de l'acteur (et de ses UBO), ré-agrège une transaction,
 journalise deux événements chaînés et <strong>signale toute aggravation</strong> par rapport à l'état précédent.
 Les dossiers « œuvre » (sans acteur) n'y sont pas soumis.</div>
+<div class="note ok"><span class="lbl">Rappel &amp; priorisation <span class="chip low">nouveau</span></span>
+Retenu comme alternative <em>tout-local</em> aux webhooks : un <strong>badge</strong> sur l'onglet Historique de la
+barre latérale affiche le nombre de dossiers à revoir depuis n'importe quelle page ; dans l'historique, un
+<strong>bandeau de rappel</strong> remonte ces dossiers <strong>en tête, du plus à risque au plus anciennement
+revu</strong> (<code>dossiersARevoir</code> / <code>countARevoir</code>).</div>
 
 <!-- ============ 12 ============ -->
 <h2 id="parametres"><span class="num">12</span>Paramètres &amp; confidentialité</h2>
@@ -565,10 +620,10 @@ ci-dessus. Le détail sourcé (avec URLs Légifrance) figure dans <code>BAREME_A
 <!-- ============ 15 ============ -->
 <h2 id="tests"><span class="num">15</span>Qualité : tests &amp; intégration continue</h2>
 <div class="grid3">
-<div class="card"><h4>127 tests unitaires</h4><p style="font-size:.88rem">Vitest — scoring, crypto, coffre,
-juridictions, marché, audit, monitoring, registres, routes API…</p></div>
+<div class="card"><h4>155 tests unitaires</h4><p style="font-size:.88rem">Vitest — scoring, dates, crypto, coffre,
+juridictions, marché, audit, monitoring, registres, OCR (parseurs), routes API…</p></div>
 <div class="card"><h4>4 parcours E2E</h4><p style="font-size:.88rem">Playwright (Chromium) : coffre, acteur,
-œuvre, transaction — parcours réels dans un navigateur.</p></div>
+œuvre, transaction — parcours réels dans un navigateur, sur serveur de production en CI.</p></div>
 <div class="card"><h4>Verrou du barème</h4><p style="font-size:.88rem"><code>bareme.test.ts</code> fige chaque
 valeur chiffrée : toute dérive doc↔code casse la CI.</p></div>
 </div>
@@ -578,18 +633,22 @@ et <code>e2e</code> (Playwright + rapport HTML archivé).</p>
 <!-- ============ 16 ============ -->
 <h2 id="limites"><span class="num">16</span>Limites connues &amp; feuille de route</h2>
 <ul>
-<li><strong>Extraction d'années par regex</strong> — ne comprend pas « circa 1940 », « XIXᵉ siècle » : le contrôle
-spoliation 1933-1945 et les ruptures peuvent passer à côté.</li>
+<li><strong>OCR assisté, non probant seul</strong> — la reconnaissance dépend de la qualité de la photo ; les
+parseurs ne proposent que ce qu'ils détectent (aucun champ inventé) et l'humain valide toujours. C'est un
+assistant de saisie, pas une source de vérité.</li>
+<li><strong>Interprétation des dates</strong> — comprend désormais « vers 1941 », « années 40 », « XIXᵉ/XVIIᵉ siècle »
+et le cadrage début/milieu/fin ; limite résiduelle : une date en toutes lettres inhabituelle ou non française
+reste non reconnue (sans faux positif).</li>
 <li><strong>Screening sur le nom</strong> — faux positifs/négatifs d'homonymie ; la désambiguïsation dépend du fournisseur.</li>
-<li><strong>Snapshot GAFI manuel</strong> — actualisé à juin 2026, garde-fou de péremption, mais mise à jour à refaire à chaque plénière.</li>
+<li><strong>Snapshot GAFI manuel</strong> — actualisé à juin 2026, garde-fou de péremption + rappel CI mensuel, mais mise à jour à refaire à chaque plénière.</li>
 <li><strong>Comparables de marché non archivés</strong> — l'humain reporte sa conclusion via l'indicateur prix.</li>
 <li><strong>Barème non validé juridiquement</strong> — c'est le verrou bloquant pour une mise en prod défendable.</li>
 </ul>
 <p class="muted">Évolutions envisagées : horodatage qualifié RFC 3161, portage desktop Tauri, connecteurs de
-marché supplémentaires, parsing de dates enrichi, actualisation semi-automatique des listes GAFI.</p>
+marché supplémentaires, données de langue OCR embarquées (hors-ligne total), actualisation semi-automatique des listes GAFI.</p>
 
 <div class="foot">
-  <strong>Provenance</strong> — dossier technique &amp; fonctionnel · généré le 2026-08-11.<br>
+  <strong>Provenance</strong> — dossier technique &amp; fonctionnel · mis à jour le 2026-08-12.<br>
   Document de synthèse ; en cas de divergence, le code (<code>src/</code>) et <code>BAREME_A_VALIDER.md</code>
   font foi. Cet outil est une aide à la vigilance LCB-FT et n'engage pas la conformité du professionnel assujetti,
   qui reste seul responsable de sa décision.
