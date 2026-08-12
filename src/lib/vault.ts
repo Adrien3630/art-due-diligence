@@ -48,6 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
   revueIntervalleMois: 12,
   horodatageActif: false,
   horodatageTsaUrl: "",
+  autoLockMinutes: 10,
 };
 
 interface VaultBlob {
