@@ -405,7 +405,9 @@ export type Dossier = ActorDossier | ArtworkDossier | TransactionDossier;
 export type MarketProvider = "aucun" | "artnet" | "custom";
 
 export interface Settings {
-  fournisseur: "sanctions_io" | "opensanctions" | "custom";
+  // "listes_officielles" = appariement LOCAL sur les listes officielles (gratuit,
+  // hors-ligne, aucune donnée ne sort). Les autres sont des fournisseurs réseau.
+  fournisseur: "listes_officielles" | "sanctions_io" | "opensanctions" | "custom";
   apiKey: string;
   nomGalerie: string;
   signataire: string;

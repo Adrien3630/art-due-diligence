@@ -10,9 +10,16 @@ import {
   gafiSnapshotAgeMonths,
   isGafiSnapshotStale,
 } from "@/lib/jurisdictions";
+import { isSanctionsSnapshotStale, snapshotAgeDays } from "@/lib/sanctions";
+import { loadSanctionsSnapshot } from "@/lib/sanctions.seed";
 import type { Settings } from "@/lib/types";
 
 const FOURNISSEURS: { value: Settings["fournisseur"]; label: string; note: string }[] = [
+  {
+    value: "listes_officielles",
+    label: "Listes officielles (local, gratuit)",
+    note: "UE · ONU · OFAC · Gels FR — appariement local, hors-ligne",
+  },
   { value: "sanctions_io", label: "Sanctions.io", note: "OFAC, UE, ONU, HMT, PPE…" },
   { value: "opensanctions", label: "OpenSanctions", note: "Listes consolidées, PPE" },
   { value: "custom", label: "Autre (compatible Sanctions.io)", note: "Schéma identique" },
@@ -23,6 +30,14 @@ export default function ParametresPage() {
   const [saved, setSaved] = useState(false);
   // Calculé au montage (client) pour éviter tout écart d'hydratation SSR.
   const [gafi, setGafi] = useState<{ stale: boolean; ageMois: number } | null>(null);
+  // Snapshot des listes officielles (calculé au montage, client).
+  const [sanctions, setSanctions] = useState<{
+    version: string;
+    seed: boolean;
+    stale: boolean;
+    ageJours: number;
+    listes: string[];
+  } | null>(null);
   // Sécurité du coffre : changement de phrase + régénération de la clé.
   const [newPass, setNewPass] = useState("");
   const [newPass2, setNewPass2] = useState("");
@@ -32,6 +47,14 @@ export default function ParametresPage() {
   useEffect(() => {
     setSettings(loadSettings());
     setGafi({ stale: isGafiSnapshotStale(), ageMois: gafiSnapshotAgeMonths() });
+    const snap = loadSanctionsSnapshot();
+    setSanctions({
+      version: snap.version,
+      seed: snap.seed,
+      stale: isSanctionsSnapshotStale(snap),
+      ageJours: snapshotAgeDays(snap),
+      listes: snap.listes,
+    });
   }, []);
 
   if (!settings) return null;
@@ -163,25 +186,70 @@ export default function ParametresPage() {
           </select>
         </label>
 
-        <div className="mt-4">
-          <Field
-            label="Clé API"
-            type="password"
-            value={settings.apiKey}
-            onChange={(e) => update({ apiKey: e.target.value })}
-            placeholder="Collez votre clé ici"
-            hint="Conservée localement. Sans clé, le screening reste en mode démonstration (non probant)."
-          />
-        </div>
+        {settings.fournisseur === "listes_officielles" ? (
+          <div className="mt-4">
+            <p className="mb-3 text-[0.78rem] leading-relaxed text-muted">
+              Appariement <strong>local</strong> des noms contre les listes officielles —{" "}
+              <strong>gratuit, hors-ligne, aucune donnée ne sort</strong>. Aucune clé requise.
+              Les PPE et l'adverse media (payants) restent un enrichissement optionnel via un
+              fournisseur réseau.
+            </p>
+            {sanctions && (
+              <div
+                className={`rounded-md border p-3 text-[0.78rem] leading-relaxed ${
+                  sanctions.stale
+                    ? "border-risk-high/40 bg-risk-high-bg text-risk-high"
+                    : "border-risk-low/40 bg-risk-low-bg text-risk-low"
+                }`}
+              >
+                {sanctions.seed ? (
+                  <>
+                    ⚠︎ <strong>Snapshot de démonstration (graine)</strong> — listes officielles
+                    complètes non installées. Un « aucune correspondance » est{" "}
+                    <strong>non probant</strong>. Importez un snapshot officiel signé (UE / ONU /
+                    OFAC / Gels FR) pour un screening opposable.
+                  </>
+                ) : sanctions.stale ? (
+                  <>
+                    ⚠︎ Snapshot périmé ({sanctions.version}, il y a ~{sanctions.ageJours} j). Les
+                    listes évoluent souvent — actualisez-le.
+                  </>
+                ) : (
+                  <>
+                    ✓ Listes installées : {sanctions.listes.join(", ")} · version {sanctions.version}
+                    {" "}(il y a ~{sanctions.ageJours} j).
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="mt-4">
+            <Field
+              label="Clé API"
+              type="password"
+              value={settings.apiKey}
+              onChange={(e) => update({ apiKey: e.target.value })}
+              placeholder="Collez votre clé ici"
+              hint="Conservée localement. Sans clé, le screening reste en mode démonstration (non probant)."
+            />
+          </div>
+        )}
 
         <div className="mt-5 flex items-center gap-4">
           <Button onClick={persist}>{saved ? "✓ Enregistré" : "Enregistrer"}</Button>
           <span
-            className={`text-[0.72rem] ${settings.apiKey ? "text-risk-low" : "text-risk-mid"}`}
+            className={`text-[0.72rem] ${
+              settings.fournisseur === "listes_officielles" || settings.apiKey
+                ? "text-risk-low"
+                : "text-risk-mid"
+            }`}
           >
-            {settings.apiKey
-              ? "Clé configurée — screening réel actif."
-              : "Aucune clé — mode démonstration."}
+            {settings.fournisseur === "listes_officielles"
+              ? "Appariement local sur listes officielles — aucune clé requise."
+              : settings.apiKey
+                ? "Clé configurée — screening réel actif."
+                : "Aucune clé — mode démonstration."}
           </span>
         </div>
       </Card>
