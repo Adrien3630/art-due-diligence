@@ -5,6 +5,8 @@
   commande Rust équivalente (même contrat d'entrée/sortie).
 */
 
+import { localScreening } from "./sanctions";
+import { loadSanctionsSnapshot } from "./sanctions.seed";
 import type {
   BeneficialOwner,
   ScreeningResult,
@@ -18,6 +20,11 @@ export async function runScreening(
   subject: ScreeningSubject,
   settings: ScreeningCred,
 ): Promise<ScreeningResult> {
+  // Fournisseur LOCAL : appariement sur les listes officielles, sans réseau —
+  // aucune donnée ne quitte la machine.
+  if (settings.fournisseur === "listes_officielles") {
+    return localScreening(subject, loadSanctionsSnapshot());
+  }
   try {
     const res = await fetch("/api/screening", {
       method: "POST",
