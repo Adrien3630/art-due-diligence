@@ -641,14 +641,12 @@ revu</strong> (<code>dossiersARevoir</code> / <code>countARevoir</code>).</div>
 <figure class="tall">
   <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Paramètres <span class="scroll-hint">· faites défiler</span></div>
   <div class="shotwrap"><img src="./assets/08-parametres.png" alt="Page des paramètres"></div>
-  <figcaption><b>Paramètres.</b> Identité de la galerie, fournisseur de screening (dont <b>« listes officielles »
-  local</b> avec bandeau de fraîcheur), intervalle de revue, bandeau GAFI, <b>verrouillage auto</b>, <b>changement
-  de phrase &amp; régénération de la clé de récupération</b>, horodatage RFC 3161 opt-in, fournisseur de marché,
-  sauvegarde chiffrée (<code>.vault</code>), rappel « Zéro cloud ».</figcaption>
+  <figcaption><b>Paramètres.</b> Ici le screening est réglé sur <b>« Listes officielles » (local)</b> — la bannière
+  rappelle honnêtement qu'un snapshot graine est <em>non probant</em>. Suivent l'intervalle de revue, le bandeau
+  GAFI, le <b>verrouillage auto</b>, les cartes <b>sauvegarde</b> et <b>phrase secrète &amp; clé de récupération</b>
+  (changement de phrase, régénération de la clé) et l'horodatage RFC 3161 opt-in. Détails en
+  <a href="#durcissement">partie 18</a>.</figcaption>
 </figure>
-<p class="muted" style="font-size:.88rem">La capture ci-dessus précède l'ajout des cartes « verrouillage auto »,
-« phrase &amp; clé de récupération » et « listes officielles » ; leur fonctionnement est décrit en
-<a href="#durcissement">partie 18</a>.</p>
 
 <!-- ============ 13 ============ -->
 <h2 id="workflow"><span class="num">13</span>Le workflow complet, de bout en bout</h2>
@@ -809,6 +807,13 @@ clé invalide l'ancienne.</li>
 les phrases faibles (min. 12 caractères, format « phrase de passe » encouragé).</li>
 </ul></div>
 </div>
+<figure>
+  <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Coffre — remise de la clé de récupération</div>
+  <div class="shotwrap"><img src="./assets/13-cle-recuperation.png" alt="Écran de remise de la clé de récupération"></div>
+  <figcaption><b>Clé de récupération.</b> Présentée une seule fois à la création (et après migration v1→v2), à
+  conserver hors de l'ordinateur. C'est la seule autre issue si la phrase est oubliée — d'où l'avertissement :
+  perte de la phrase <em>et</em> de cette clé = données irrécupérables.</figcaption>
+</figure>
 
 <h3>18.2 — Couverture KYC des personnes</h3>
 <p>L'audit a montré que, côté œuvres, la checklist était quasi complète, mais que des attendus KYC manquaient côté
