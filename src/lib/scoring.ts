@@ -90,6 +90,22 @@ export function freshActorIndices(): AuditAnswer[] {
       flagValue: true,
       poids: 2,
     },
+    {
+      id: "agit_tiers_opaque",
+      question:
+        "La partie agit-elle pour le compte d'un tiers dont l'identité n'est pas établie (mandat / procuration) ?",
+      categorie: "Transparence",
+      flagValue: true,
+      poids: 3,
+    },
+    {
+      id: "proche_ppe",
+      question:
+        "La partie est-elle un proche (famille, entourage) ou un associé connu d'une personne politiquement exposée (PPE) ?",
+      categorie: "Transparence",
+      flagValue: true,
+      poids: 3,
+    },
   ];
   return q.map((x) => ({ ...x, reponse: null }));
 }
@@ -237,7 +253,12 @@ export function assessActor(
       points += 3;
     }
     if (indiceTransparence) {
-      facteurs.push("Indice de structure opaque signalé par le galeriste.");
+      // Points inchangés (drapeau global +3) ; on nomme les indices retenus.
+      for (const a of actor.indices) {
+        if (a.reponse !== null && a.reponse === a.flagValue) {
+          facteurs.push(`Indice de vigilance signalé : « ${a.question} »`);
+        }
+      }
       points += 3;
     }
     if (actor.kind === "entite" && actor.beneficiaires.length > 0)

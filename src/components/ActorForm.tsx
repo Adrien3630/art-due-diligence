@@ -393,6 +393,49 @@ export function ActorForm({
         </div>
       )}
 
+      {/* Relation d'affaires & KYC (attendus LCB-FT) */}
+      <div className="mt-6">
+        <SectionTitle eyebrow="Connaissance client">Relation d'affaires</SectionTitle>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <Field
+              label={actor.kind === "entite" ? "Adresse du siège" : "Adresse complète"}
+              value={actor.adresse}
+              onChange={(e) => set({ adresse: e.target.value })}
+              placeholder="N°, rue, code postal, ville, pays"
+              hint="Complète le seul pays — utile à l'identification et aux courriers."
+            />
+          </div>
+          <div className="col-span-2">
+            <Field
+              label="Objet & nature de la relation d'affaires"
+              value={actor.objetRelation}
+              onChange={(e) => set({ objetRelation: e.target.value })}
+              placeholder="Achat ponctuel, collection régulière, mandat de vente…"
+              hint="Attendu LCB-FT (art. L. 561-5-1 CMF) : ce que vous savez de l'opération et de son but."
+            />
+          </div>
+          <div className="col-span-2">
+            <Field
+              label="Mandant / bénéficiaire réel de l'opération (si la partie agit pour un tiers)"
+              value={actor.mandant}
+              onChange={(e) => set({ mandant: e.target.value })}
+              placeholder="Laisser vide si la partie agit pour son propre compte"
+              hint="Si un tiers non identifié est en jeu, cochez l'indice correspondant ci-dessous."
+            />
+          </div>
+          <div className="col-span-2">
+            <Field
+              label="Origine des fonds / du patrimoine"
+              value={actor.origineFonds}
+              onChange={(e) => set({ origineFonds: e.target.value })}
+              placeholder="Cession d'actifs, revenus professionnels, héritage, financement bancaire…"
+              hint="Requise en vigilance renforcée. La renseigner ici satisfait la pièce correspondante."
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Seuil de transaction (acheteur) — déclenche la pièce d'identité obligatoire */}
       {actor.role === "acheteur" && (
         <div className="mt-6 rounded-md border border-line bg-surface-2 p-4">

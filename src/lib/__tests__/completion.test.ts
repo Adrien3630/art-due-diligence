@@ -57,6 +57,23 @@ describe("actorCompletion", () => {
     expect(piece?.done).toBe(false);
     expect(c.pct).toBeLessThan(100);
   });
+
+  it("origine des fonds renseignée → la pièce « origine des fonds » est satisfaite", () => {
+    // Un signal PPE force la vigilance renforcée → pièce origine des fonds due.
+    const ppe: ScreeningResult = { ...clear, status: "ppe" };
+    const a = {
+      ...emptyActor(),
+      nom: "Dupont",
+      prenoms: "Jean",
+      dateNaissance: "1970-01-01",
+      nationalite: "Française",
+      pays: "France",
+      origineFonds: "Cession d'un bien immobilier (2024)",
+    };
+    const c = actorCompletion(a, assessActor(a, ppe, [], CTX));
+    const piece = c.items.find((i) => i.id === "piece_origine_fonds");
+    expect(piece?.done).toBe(true);
+  });
 });
 
 describe("artworkCompletion", () => {

@@ -196,10 +196,23 @@ comportement peut **monter** le niveau (≥ 6 → élevé ; ≥ 3 → au moins v
 **jamais le baisser**. *Structure prudente, bornes arbitraires.*
 
 ### B7. Indices acteur (`freshActorIndices`)
-| Indice | Poids |
-|---|---|
-| Structure-écran / mandat à bénéficiaire opaque | 3 |
-| Réticence inhabituelle à fournir des informations | 2 |
+Indices **facultatifs**, déclarés par le galeriste. Règle actuelle : dès qu'**au
+moins un** est signalé, le sous-score *Transparence* prend **+3** (drapeau global ;
+les poids ci-dessous sont indicatifs et n'additionnent pas aujourd'hui).
+
+| Indice | Poids | À valider |
+|---|---|---|
+| Structure-écran / mandat à bénéficiaire opaque | 3 | Arbitraire |
+| Réticence inhabituelle à fournir des informations | 2 | Arbitraire |
+| **Agit pour le compte d'un tiers non identifié** (mandat / procuration) | 3 | **Nouveau** — couvre la représentation (pouvoirs du mandataire, art. L. 561-5 II CMF). À valider. |
+| **Proche / entourage / associé connu d'une PPE** (RCA) | 3 | **Nouveau** — l'entourage PPE relève de la définition PPE. Faut-il un traitement dédié (pas seulement *Transparence*) ? À valider. |
+
+> **Couverture KYC personnes ajoutée (à valider).** Au-delà de ces indices, le
+> dossier acteur capture désormais l'**objet & la nature de la relation d'affaires**
+> (attendu art. L. 561-5-1 CMF), l'**adresse complète**, le **mandant / bénéficiaire
+> réel de l'opération** et l'**origine des fonds / du patrimoine** (qui satisfait la
+> pièce due en vigilance renforcée). Ces éléments sont *documentés*, sans pondération
+> — à confirmer que le périmètre recueilli est suffisant au regard du CMF.
 
 ### B8. Vigilance continue (`monitoring.ts`)
 - Intervalle de revue par défaut : **12 mois** (`revueIntervalleMois`, paramétrable).

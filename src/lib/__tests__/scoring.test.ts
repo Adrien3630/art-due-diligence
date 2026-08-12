@@ -328,3 +328,32 @@ describe("checklists & métadonnées", () => {
     expect(TIER_META.simplifiee.label).toContain("simplifiée");
   });
 });
+
+/* ───────────────── Couverture KYC personnes ───────────────── */
+
+describe("indices KYC — mandat opaque & proche PPE", () => {
+  const ctx = { seuilVigilanceEur: 10000, montantEur: null };
+
+  it("un indice « proche PPE » signalé sort de la vigilance simplifiée", () => {
+    const a = fullPerson();
+    expect(assessActor(a, clearScreening(), [], ctx).tier).toBe("simplifiee");
+    a.indices = freshActorIndices().map((q) =>
+      q.id === "proche_ppe" ? { ...q, reponse: q.flagValue } : q,
+    );
+    const r = assessActor(a, clearScreening(), [], ctx);
+    expect(r.tier).not.toBe("simplifiee");
+    // Le libellé du facteur reprend fidèlement la question posée (pas de texte générique).
+    expect(r.facteurs.some((f) => f.includes("personne politiquement exposée"))).toBe(true);
+  });
+
+  it("« agit pour un tiers opaque » est traité comme un point d'opacité", () => {
+    const a = fullPerson();
+    a.indices = freshActorIndices().map((q) =>
+      q.id === "agit_tiers_opaque" ? { ...q, reponse: q.flagValue } : q,
+    );
+    const trans = assessActor(a, clearScreening(), [], ctx).sousScores.find(
+      (s) => s.categorie === "Transparence",
+    );
+    expect(trans?.points).toBe(3);
+  });
+});
