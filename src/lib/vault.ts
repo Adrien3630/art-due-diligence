@@ -46,6 +46,8 @@ export const DEFAULT_SETTINGS: Settings = {
   marcheApiKey: "",
   marcheEndpoint: "",
   revueIntervalleMois: 12,
+  horodatageActif: false,
+  horodatageTsaUrl: "",
 };
 
 interface VaultBlob {

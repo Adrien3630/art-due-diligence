@@ -272,8 +272,11 @@ export type AuditEventType =
   | "screening_lance"
   | "screening_resultat"
   | "piece_ajoutee"
+  | "piece_filigranee"
+  | "registres_attestes"
   | "match_ecarte"
   | "gel_avoirs_signale"
+  | "horodatage_appose"
   | "decision_saisie"
   | "dossier_archive";
 
@@ -315,6 +318,17 @@ interface DossierBase {
   // Boucle de conformité : journal chaîné + décision humaine.
   auditTrail: AuditEvent[];
   decision: HumanDecision | null;
+  // Horodatage qualifié RFC 3161 de l'empreinte du dossier (optionnel, cf.
+  // Settings.horodatageActif). Absent tant que non sollicité.
+  horodatage?: TimestampProof;
+}
+
+/** Jeton d'horodatage RFC 3161 conservé (miroir de lib/timestamp.TimestampToken). */
+export interface TimestampProof {
+  hashHex: string;
+  tsaUrl: string;
+  tokenBase64: string;
+  obtenuLe: string; // ISO
 }
 
 /** Dossier de due diligence d'un acteur seul. */
@@ -396,4 +410,9 @@ export interface Settings {
   // Vigilance continue : un dossier non revu depuis ce nombre de mois est
   // signalé « à revoir ». Indicatif, À VALIDER PAR UN JURISTE.
   revueIntervalleMois: number;
+  // Horodatage qualifié RFC 3161 (OPTIONNEL). Désactivé par défaut : c'est le
+  // seul appel réseau sortant de l'outil. Activé, SEULE l'empreinte SHA-256 du
+  // dossier quitte la machine (cf. lib/timestamp.ts).
+  horodatageActif: boolean;
+  horodatageTsaUrl: string; // URL de l'autorité d'horodatage (RFC 3161)
 }
