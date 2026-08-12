@@ -152,6 +152,7 @@
   <a href="#limites">16. Limites &amp; feuille de route</a>
   <div class="grp">Évolutions</div>
   <a href="#ergo">17. Ergonomie &amp; sécurité</a>
+  <a href="#durcissement">18. Coffre v2 · KYC · screening</a>
 </nav>
 
 <main>
@@ -165,7 +166,7 @@
   <div class="meta">
     <span>Next.js 16 · React 19</span>
     <span>100 % local · coffre chiffré AES-GCM</span>
-    <span>194 tests · 6 E2E · CI verte</span>
+    <span>219 tests · 8 E2E · CI verte</span>
     <span>Snapshot GAFI : juin 2026</span>
     <span>Mis à jour le 2026-08-12</span>
   </div>
@@ -188,6 +189,15 @@ inter-modules</strong>, <strong>aperçu PDF en modale</strong>, <strong>filigran
 implémentés en <strong>version honnête</strong> : l'<strong>attestation de revue des registres</strong> reste un
 constat <em>humain</em> consigné (jamais d'auto-« aucun match »), et l'<strong>horodatage RFC 3161</strong> est
 <strong>opt-in, désactivé par défaut</strong> (seule l'empreinte SHA-256 sort de la machine).</div>
+
+<div class="note ok" style="margin:0 0 8px"><span class="lbl">Durcissement &amp; couverture — sécurité du coffre, KYC, screening possédé (août 2026)</span>
+Troisième vague, détaillée en <a href="#durcissement">partie 18</a> : <strong>coffre v2 par enveloppe</strong>
+(clé de données wrappée sous la phrase via <strong>Argon2id</strong> <em>et</em> sous une <strong>clé de
+récupération</strong> — « phrase oubliée » ne perd plus tout), <strong>verrouillage automatique</strong> après
+inactivité, <strong>estimateur de force de phrase</strong>, <strong>changement de phrase</strong> ;
+<strong>couverture KYC personnes</strong> (objet de la relation, mandat/représentation, origine des fonds,
+entourage PPE) ; et un fournisseur de <strong>screening « listes officielles » 100 % local</strong> (gratuit,
+hors-ligne, la partie sanctions/gels enfin <em>possédée</em> et non louée).</div>
 
 <!-- ============ 1 ============ -->
 <h2 id="vue"><span class="num">01</span>Vue d'ensemble &amp; positionnement</h2>
@@ -225,11 +235,13 @@ faux « rien à signaler ». Quand une donnée n'est pas probante, l'outil l'aff
 <em>empreinte SHA-256</em> irréversible d'un dossier, avec les clés API du galeriste. Pièces d'identité et photos
 d'œuvre restent des <code>data-URL</code> jamais transmises.</p></div></div>
 
-<div class="feat"><div class="ic">🛡️</div><div class="bd"><h4>Sécurité au repos</h4>
-<p>Coffre <strong>AES-GCM 256 bits</strong>, clé dérivée par <strong>PBKDF2-SHA256, 210 000 itérations</strong>,
-IV aléatoire de 12 octets à chaque opération. La phrase secrète n'est <strong>jamais stockée</strong> — seule la
-clé dérivée vit en mémoire de session. Le verrouillage la purge. Perte de la phrase = données irrécupérables
-(d'où l'export chiffré).</p></div></div>
+<div class="feat"><div class="ic">🛡️</div><div class="bd"><h4>Sécurité au repos <span class="chip low">renforcé</span></h4>
+<p>Coffre <strong>AES-GCM 256 bits</strong> en <strong>chiffrement par enveloppe</strong> : une clé de données
+chiffre le contenu ; elle est protégée par la phrase secrète dérivée en <strong>Argon2id</strong> (memory-hard,
+bien plus résistant au force-brute GPU que PBKDF2) <em>et</em> par une <strong>clé de récupération</strong>.
+La phrase n'est <strong>jamais stockée</strong> ; le <strong>verrouillage automatique</strong> après inactivité
+purge la clé de la mémoire. Une <strong>phrase oubliée</strong> ne perd plus tout (clé de récupération), et changer
+de phrase ne re-chiffre pas les dossiers. Détail en <a href="#durcissement">partie 18</a>.</p></div></div>
 
 <div class="feat"><div class="ic">⚖️</div><div class="bd"><h4>Revue humaine obligatoire &amp; responsabilité pénale</h4>
 <p>Toute synthèse porte l'invariant <code>revueHumaineRequise: true</code>. L'archivage d'un dossier est
@@ -282,24 +294,27 @@ La couche de screening/marché passe par des routes Next au contrat d'E/S stable
 <!-- ============ 4 ============ -->
 <h2 id="coffre"><span class="num">04</span>Le coffre chiffré — porte d'entrée obligatoire</h2>
 <p>Rien de l'application n'est rendu tant que le coffre n'est pas déverrouillé. Le composant <code>VaultGate</code>
-décide au montage entre quatre modes : <span class="chip neutral">création</span> (premier lancement),
-<span class="chip neutral">migration</span> (données en clair héritées à chiffrer),
-<span class="chip neutral">déverrouillage</span> (coffre existant) et <span class="chip neutral">prêt</span>.</p>
+décide au montage entre plusieurs modes : <span class="chip neutral">création</span>,
+<span class="chip neutral">migration</span>, <span class="chip neutral">déverrouillage</span>,
+<span class="chip neutral">récupération</span> (phrase oubliée → clé de récupération) et
+<span class="chip neutral">prêt</span>.</p>
 <figure>
   <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; VaultGate — mode création</div>
   <div class="shotwrap"><img src="./assets/01-coffre.png" alt="Écran de création du coffre chiffré"></div>
-  <figcaption><b>Création du coffre.</b> Phrase secrète (min. 8 caractères) + confirmation. Le pied de page
-  affiche la garantie technique : « Chiffrement AES-GCM 256 · clé dérivée par PBKDF2 · 100 % local ». Un
-  avertissement rappelle que sans la phrase, les données sont irrécupérables.</figcaption>
+  <figcaption><b>Création du coffre.</b> Phrase secrète (min. 12 caractères, <b>jauge de force</b>) + confirmation,
+  puis remise d'une <b>clé de récupération</b> à conserver. Le pied affiche : « AES-GCM 256 · clé dérivée par
+  Argon2id · 100 % local ». Sans la phrase <em>ni</em> la clé de récupération, les données restent irrécupérables.</figcaption>
 </figure>
 <div class="grid2">
-<div class="card"><h4>Ce qui est chiffré</h4><p style="font-size:.9rem">Un <strong>unique blob</strong>
-(<code>{v, salt, iterations, sealed}</code>) contenant l'ensemble <code>{settings, history}</code> — donc
-tous les dossiers, décisions, pièces jointes et la clé API. Persisté sur IndexedDB
-(<code>DB "provenance"</code>, store <code>kv</code>).</p></div>
-<div class="card"><h4>Export / import</h4><p style="font-size:.9rem"><code>exportBlob()</code> produit le blob
-chiffré (sauvegarde hors-machine, rétention 5 ans) ; <code>importBlob(json, phrase)</code> le restaure après
-validation du format et de la phrase. En cas de quota IndexedDB dépassé → <code>StorageFullError</code> explicite.</p></div>
+<div class="card"><h4>Chiffrement par enveloppe (v2)</h4><p style="font-size:.9rem">Une <strong>clé de données</strong>
+(DK) aléatoire chiffre l'ensemble <code>{settings, history, drafts}</code> (dossiers, décisions, pièces, clés API).
+La DK est <em>emballée</em> deux fois : sous la <strong>phrase</strong> (Argon2id) et sous la <strong>clé de
+récupération</strong>. Blob v2 <code>{v, kdf, params, saltPass, wrapPass, saltRecovery, wrapRecovery, sealed}</code>,
+persisté sur IndexedDB. Les coffres v1 (PBKDF2) sont <strong>migrés</strong> au déverrouillage.</p></div>
+<div class="card"><h4>Récupération, changement, export</h4><p style="font-size:.9rem"><strong>Phrase oubliée</strong> →
+la clé de récupération rouvre le coffre puis on définit une nouvelle phrase. <strong>Changer de phrase</strong>
+re-emballe la DK sans re-chiffrer le contenu (rapide). <code>exportBlob()</code> / <code>importBlob()</code> pour la
+sauvegarde hors-machine (rétention 5 ans) ; quota dépassé → <code>StorageFullError</code>.</p></div>
 </div>
 
 <!-- ============ 5 ============ -->
@@ -332,6 +347,11 @@ sont <strong>auto-complétés</strong> depuis le coffre.</li>
 <li><strong>Jauge de complétion</strong> <span class="chip low">nouveau</span> : une barre indique en direct le
 pourcentage de dossier prêt et la <em>prochaine étape</em> (« Date de naissance », « Origine des fonds à
 documenter »…), calée sur le niveau de vigilance retenu.</li>
+<li><strong>Couverture KYC</strong> <span class="chip low">nouveau</span> : au-delà de l'identité, le dossier recueille
+l'<strong>objet &amp; la nature de la relation d'affaires</strong> (art. L. 561-5-1 CMF), l'<strong>adresse complète</strong>,
+le <strong>mandant / bénéficiaire réel</strong> (si la partie agit pour un tiers) et l'<strong>origine des fonds</strong>
+(qui satisfait la pièce due en renforcée). Deux indices facultatifs couvrent la <strong>représentation opaque</strong>
+et l'<strong>entourage d'une PPE</strong> (RCA).</li>
 <li><strong>Sortie</strong> : niveau de vigilance (tier), sous-scores explicables, pièces à collecter justifiées.</li>
 </ul>
 <figure class="tall">
@@ -530,7 +550,17 @@ juin 2026 et doté du garde-fou de péremption.</div>
 
 <!-- ============ 8 ============ -->
 <h2 id="screening"><span class="num">08</span>Screening des sanctions &amp; gestion des faux positifs</h2>
-<p>Le screening s'effectue via la route <code>POST /api/screening</code>, qui ne conserve aucune donnée.</p>
+<p>Deux voies au choix : un <strong>appariement local sur listes officielles</strong> (recommandé — gratuit,
+hors-ligne, <em>aucune donnée ne sort</em>) ou un <strong>fournisseur réseau</strong> via la route
+<code>POST /api/screening</code>, qui ne conserve aucune donnée.</p>
+<div class="note ok"><span class="lbl">Screening « listes officielles » — local &amp; possédé <span class="chip low">nouveau</span></span>
+Les listes qui font foi (UE, ONU, OFAC, <strong>Registre national des gels</strong> — DG Trésor) sont gratuites.
+Le fournisseur <code>listes_officielles</code> apparie les noms <strong>en local</strong> (matcher flou, réutilise
+<code>similarity</code>), sans réseau. On <em>possède</em> ainsi la partie sanctions/gels au lieu de la louer.
+<strong>Honnêteté</strong> : un <em>snapshot « graine »</em> (démonstration, incomplet) ne renvoie <strong>jamais</strong>
+un « clear » probant — un non-match y est explicitement <strong>non probant</strong> ; seul un snapshot officiel
+<em>complet</em> produit un « clear » opposable. Un garde-fou de fraîcheur alerte quand le snapshot vieillit.
+PPE &amp; adverse media (payants, difficiles) restent un <strong>enrichissement optionnel</strong> via un fournisseur réseau.</div>
 <table>
 <thead><tr><th>Statut</th><th>Signification</th></tr></thead>
 <tbody>
@@ -539,12 +569,13 @@ juin 2026 et doté du garde-fou de péremption.</div>
 <tr><td><span class="chip mid">media</span></td><td>Présence en médias négatifs (adverse media)</td></tr>
 <tr><td><span class="chip low">clear</span></td><td>Aucune correspondance sur les listes interrogées</td></tr>
 <tr><td><span class="chip high">error</span></td><td>Appel impossible — jamais transformé en faux « clear »</td></tr>
-<tr><td><span class="chip neutral">demo</span></td><td>Sans clé API : résultat <strong>explicitement NON probant</strong></td></tr>
+<tr><td><span class="chip neutral">demo</span></td><td>Sans clé API <em>ou</em> snapshot graine incomplet : résultat <strong>explicitement NON probant</strong></td></tr>
 </tbody></table>
 <div class="grid2">
-<div class="card"><h4>Fournisseurs réels</h4><p style="font-size:.9rem"><strong>Sanctions.io</strong>
-(<code>min_score 0.85</code>, désambiguïsation date/nationalité) et <strong>OpenSanctions</strong>
-(schéma Person/Organization, topics → Sanction/PEP). Un connecteur <code>custom</code> compatible est prévu.</p></div>
+<div class="card"><h4>Fournisseurs</h4><p style="font-size:.9rem"><strong>Listes officielles</strong> (local, gratuit)
+pour sanctions/gels ; <strong>Sanctions.io</strong> (<code>min_score 0.85</code>, désambiguïsation
+date/nationalité) et <strong>OpenSanctions</strong> (schéma Person/Organization, topics → Sanction/PEP) pour
+l'enrichissement PPE/média. Un connecteur <code>custom</code> compatible est prévu.</p></div>
 <div class="card"><h4>Faux positifs tracés</h4><p style="font-size:.9rem">Un match homonyme peut être
 <strong>écarté avec justification</strong> : il reste visible (barré) mais sort du calcul, et l'action est
 journalisée (<code>match_ecarte</code>). Le recalcul du statut effectif est partagé entre la route et le client
@@ -610,10 +641,14 @@ revu</strong> (<code>dossiersARevoir</code> / <code>countARevoir</code>).</div>
 <figure class="tall">
   <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Paramètres <span class="scroll-hint">· faites défiler</span></div>
   <div class="shotwrap"><img src="./assets/08-parametres.png" alt="Page des paramètres"></div>
-  <figcaption><b>Paramètres.</b> Identité de la galerie, fournisseur &amp; clé de screening, intervalle de revue,
-  <b>bandeau de fraîcheur des listes GAFI</b> (vert « à jour » / rouge « périmé »), fournisseur de marché optionnel,
-  sauvegarde chiffrée (export/import <code>.vault</code>), et un rappel « Zéro cloud ».</figcaption>
+  <figcaption><b>Paramètres.</b> Identité de la galerie, fournisseur de screening (dont <b>« listes officielles »
+  local</b> avec bandeau de fraîcheur), intervalle de revue, bandeau GAFI, <b>verrouillage auto</b>, <b>changement
+  de phrase &amp; régénération de la clé de récupération</b>, horodatage RFC 3161 opt-in, fournisseur de marché,
+  sauvegarde chiffrée (<code>.vault</code>), rappel « Zéro cloud ».</figcaption>
 </figure>
+<p class="muted" style="font-size:.88rem">La capture ci-dessus précède l'ajout des cartes « verrouillage auto »,
+« phrase &amp; clé de récupération » et « listes officielles » ; leur fonctionnement est décrit en
+<a href="#durcissement">partie 18</a>.</p>
 
 <!-- ============ 13 ============ -->
 <h2 id="workflow"><span class="num">13</span>Le workflow complet, de bout en bout</h2>
@@ -659,12 +694,13 @@ ci-dessus. Le détail sourcé (avec URLs Légifrance) figure dans <code>BAREME_A
 <!-- ============ 15 ============ -->
 <h2 id="tests"><span class="num">15</span>Qualité : tests &amp; intégration continue</h2>
 <div class="grid3">
-<div class="card"><h4>194 tests unitaires</h4><p style="font-size:.88rem">Vitest — scoring, dates, crypto, coffre,
-juridictions, marché, audit, monitoring, registres, OCR (parseurs) &amp; cascade UBO, antécédents (Levenshtein),
-suggestions, complétion, filigrane, horodatage RFC 3161 (DER), routes API…</p></div>
-<div class="card"><h4>6 parcours E2E</h4><p style="font-size:.88rem">Playwright (Chromium) : coffre, acteur,
-œuvre, transaction, jauge + bascule inter-modules, saisie rapide foire — parcours réels dans un navigateur, sur
-serveur de production en CI.</p></div>
+<div class="card"><h4>219 tests unitaires</h4><p style="font-size:.88rem">Vitest — scoring, dates, crypto &amp; coffre v2
+(Argon2id, clé de récupération, migration), passphrase, juridictions, marché, audit, monitoring, registres, OCR &amp;
+cascade UBO, antécédents, suggestions, complétion, filigrane, horodatage (DER), <strong>appariement sanctions
+local</strong>, routes API…</p></div>
+<div class="card"><h4>8 parcours E2E</h4><p style="font-size:.88rem">Playwright (Chromium) : coffre, <strong>récupération
+par clé + nouvelle phrase</strong>, phrase faible refusée, acteur, œuvre, transaction, jauge + bascule, saisie
+rapide foire — sur serveur de production en CI.</p></div>
 <div class="card"><h4>Verrou du barème</h4><p style="font-size:.88rem"><code>bareme.test.ts</code> fige chaque
 valeur chiffrée : toute dérive doc↔code casse la CI.</p></div>
 </div>
@@ -680,14 +716,19 @@ assistant de saisie, pas une source de vérité.</li>
 <li><strong>Interprétation des dates</strong> — comprend désormais « vers 1941 », « années 40 », « XIXᵉ/XVIIᵉ siècle »
 et le cadrage début/milieu/fin ; limite résiduelle : une date en toutes lettres inhabituelle ou non française
 reste non reconnue (sans faux positif).</li>
-<li><strong>Screening sur le nom</strong> — faux positifs/négatifs d'homonymie ; la désambiguïsation dépend du fournisseur.</li>
+<li><strong>Screening sur le nom</strong> — faux positifs/négatifs d'homonymie inhérents. Le socle sanctions/gels est
+désormais <em>possédé</em> (listes officielles, local) ; PPE &amp; adverse media restent un enrichissement payant, et
+un <strong>snapshot graine</strong> n'est pas probant tant que les listes complètes ne sont pas installées.</li>
+<li><strong>Distribution des listes officielles</strong> — l'ingestion périodique + la distribution <em>signée</em> des
+snapshots (UE/ONU/OFAC/Gels FR) relèvent d'un service à héberger ; le format et le point de branchement client sont prêts.</li>
 <li><strong>Snapshot GAFI manuel</strong> — actualisé à juin 2026, garde-fou de péremption + rappel CI mensuel, mais mise à jour à refaire à chaque plénière.</li>
 <li><strong>Comparables de marché non archivés</strong> — l'humain reporte sa conclusion via l'indicateur prix.</li>
 <li><strong>Barème non validé juridiquement</strong> — c'est le verrou bloquant pour une mise en prod défendable.</li>
 </ul>
-<p class="muted">Évolutions envisagées : portage desktop Tauri, connecteurs de marché supplémentaires, données de
-langue OCR embarquées (hors-ligne total), actualisation semi-automatique des listes GAFI. <span class="chip low">livré</span>
-L'horodatage qualifié RFC 3161 est désormais disponible <em>en option</em> (désactivé par défaut).</p>
+<p class="muted">Évolutions envisagées : sauvegarde &amp; distribution des listes en <strong>cloud zéro-knowledge</strong>
+(le client est prêt, le serveur reste à héberger), portage desktop Tauri, connecteurs de marché supplémentaires,
+données de langue OCR embarquées. <span class="chip low">livré</span> Horodatage RFC 3161 (opt-in), coffre v2 avec
+clé de récupération, et screening local sur listes officielles.</p>
 
 <!-- ============ 17 ============ -->
 <h2 id="ergo"><span class="num">17</span>Ergonomie &amp; sécurité — 13 nouvelles fonctionnalités</h2>
@@ -743,6 +784,62 @@ Les 13 fonctionnalités préservent les quatre invariants — <em>tout-local / z
 explicite et désactivée par défaut, de l'empreinte d'horodatage), <em>registres honnêtes</em>, <em>aucune analyse
 d'image</em>, <em>revue humaine obligatoire</em> (OCR &amp; UBO restent assistés et validés par l'humain).
 Couverture : <strong>+39 tests unitaires</strong> et <strong>+2 parcours E2E</strong>.</div>
+
+<!-- ============ 18 ============ -->
+<h2 id="durcissement"><span class="num">18</span>Durcissement du coffre, couverture KYC &amp; screening possédé</h2>
+<p>Troisième vague, en réponse à un audit des faiblesses : elle <strong>durcit la sécurité au repos</strong>,
+<strong>complète la couverture KYC des personnes</strong> et <strong>rend le screening sanctions possédé</strong> —
+toujours sans déroger aux invariants.</p>
+
+<h3>18.1 — Coffre v2 : chiffrement par enveloppe &amp; clé de récupération</h3>
+<p>Le problème : une phrase forte <em>augmente</em> le risque d'oubli, or l'oubli faisait perdre 5 ans d'archives
+(obligation de conservation). La réponse est une <strong>clé de récupération</strong> découplée de la mémorisation.</p>
+<div class="grid2">
+<div class="card"><h4>Enveloppe</h4><ul style="font-size:.9rem">
+<li>Une <strong>clé de données</strong> aléatoire chiffre le contenu.</li>
+<li>Elle est emballée sous la <strong>phrase</strong> (<strong>Argon2id</strong>, memory-hard) <em>et</em> sous une
+<strong>clé de récupération</strong> (160 bits, base32 lisible).</li>
+<li>Migration <strong>v1 (PBKDF2) → v2</strong> transparente au déverrouillage, avec remise d'une clé de récupération.</li>
+</ul></div>
+<div class="card"><h4>Parcours &amp; verrous</h4><ul style="font-size:.9rem">
+<li><strong>Phrase oubliée</strong> → la clé de récupération rouvre le coffre, puis nouvelle phrase.</li>
+<li><strong>Changer de phrase</strong> re-emballe la clé sans re-chiffrer les dossiers ; <strong>régénérer</strong> la
+clé invalide l'ancienne.</li>
+<li><strong>Verrouillage auto</strong> après inactivité (défaut 10 min) + <strong>jauge de force</strong> qui refuse
+les phrases faibles (min. 12 caractères, format « phrase de passe » encouragé).</li>
+</ul></div>
+</div>
+
+<h3>18.2 — Couverture KYC des personnes</h3>
+<p>L'audit a montré que, côté œuvres, la checklist était quasi complète, mais que des attendus KYC manquaient côté
+personnes. Ajoutés (documentés, sans pondération arbitraire) :</p>
+<ul>
+<li><strong>Objet &amp; nature de la relation d'affaires</strong> (art. L. 561-5-1 CMF) et <strong>adresse complète</strong>.</li>
+<li><strong>Mandant / bénéficiaire réel</strong> quand la partie agit pour un tiers (représentation, pouvoirs du mandataire).</li>
+<li><strong>Origine des fonds / du patrimoine</strong> — structurée, elle satisfait la pièce due en vigilance renforcée.</li>
+<li>Deux indices facultatifs : <strong>représentation opaque</strong> et <strong>entourage / associé d'une PPE</strong> (RCA).</li>
+</ul>
+<div class="note info"><span class="lbl">Discipline barème</span>
+Ces éléments ferment un trou de <em>couverture</em> (de l'ingénierie), à ne pas confondre avec le <em>calibrage</em>
+des poids (validation juridique). Les deux nouveaux indices sont consignés dans <code>BAREME_A_VALIDER.md</code>.</div>
+
+<h3>18.3 — Screening « listes officielles » : possédé, pas loué</h3>
+<p>La dépendance à un fournisseur payant faisait retomber la fonction AML centrale en « démonstration non probante ».
+Or les listes qui font foi (UE, ONU, OFAC, <strong>Registre national des gels</strong>) sont <strong>gratuites</strong>.</p>
+<ul>
+<li>Nouveau fournisseur <code>listes_officielles</code> : <strong>appariement local</strong> des noms (matcher flou),
+<strong>aucun réseau</strong>, aucune donnée ne sort.</li>
+<li><strong>Honnêteté</strong> : une <em>graine</em> incomplète ne renvoie jamais un « clear » probant (non-match =
+<strong>non probant</strong>) ; seul un snapshot officiel <em>complet</em> produit un « clear » opposable ; garde-fou
+de fraîcheur inclus.</li>
+<li>Hiérarchie assumée : <strong>posséder</strong> le socle sanctions/gels (local, gratuit), <strong>louer</strong>
+seulement l'enrichissement PPE/adverse media (réseau, optionnel).</li>
+</ul>
+<div class="note ok"><span class="lbl">Bilan de la vague</span>
+<strong>+25 tests</strong> (219 au total) et <strong>+2 parcours E2E</strong> (8). Les faiblesses « pas d'auto-lock »,
+« perte de phrase = données perdues », « KDF PBKDF2 », « screening loué » et « couverture KYC personnes » sont
+traitées. Restent, hors code : la <strong>validation juridique du barème</strong> et l'<strong>hébergement</strong> du
+service cloud zéro-knowledge (sauvegarde + distribution signée des listes) — dont le côté client est déjà prêt.</div>
 
 <div class="foot">
   <strong>Provenance</strong> — dossier technique &amp; fonctionnel · mis à jour le 2026-08-12.<br>
