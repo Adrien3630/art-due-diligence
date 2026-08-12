@@ -113,6 +113,11 @@ export interface Actor {
   // Communs
   nom: string; // nom de famille (personne) ou raison sociale (entité)
   pays: string; // résidence (personne) ou juridiction (entité)
+  adresse: string; // adresse complète (résidence / siège) — au-delà du seul pays
+  // KYC — relation d'affaires (attendus LCB-FT, cf. L. 561-5-1 CMF)
+  objetRelation: string; // objet & nature envisagés de la relation d'affaires
+  mandant: string; // si la partie agit pour le compte d'un tiers : identité du mandant / bénéficiaire réel de l'opération
+  origineFonds: string; // origine déclarée des fonds / du patrimoine (vigilance renforcée)
   // Personne
   prenoms: string;
   dateNaissance: string;

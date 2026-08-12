@@ -316,6 +316,35 @@ function ActorBody({
         </View>
       </View>
 
+      {actor.adresse || actor.objetRelation || actor.mandant || actor.origineFonds ? (
+        <View style={{ marginBottom: 6 }}>
+          {actor.adresse ? (
+            <>
+              <Text style={s.eyebrow}>Adresse</Text>
+              <Text style={s.val}>{actor.adresse}</Text>
+            </>
+          ) : null}
+          {actor.objetRelation ? (
+            <>
+              <Text style={s.eyebrow}>Objet & nature de la relation d'affaires</Text>
+              <Text style={s.val}>{actor.objetRelation}</Text>
+            </>
+          ) : null}
+          {actor.mandant ? (
+            <>
+              <Text style={s.eyebrow}>Agit pour le compte de (mandant)</Text>
+              <Text style={s.val}>{actor.mandant}</Text>
+            </>
+          ) : null}
+          {actor.origineFonds ? (
+            <>
+              <Text style={s.eyebrow}>Origine des fonds / du patrimoine</Text>
+              <Text style={s.val}>{actor.origineFonds}</Text>
+            </>
+          ) : null}
+        </View>
+      ) : null}
+
       {actor.pieceIdentiteDoc ? (
         <View style={{ marginBottom: 6 }}>
           <Text style={s.eyebrow}>Pièce d'identité au dossier</Text>

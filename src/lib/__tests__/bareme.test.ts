@@ -315,9 +315,18 @@ describe("B6 — poids du comportement + règle d'agrégation", () => {
 
 describe("B7 — poids des indices acteur", () => {
   const poids = (id: string) => freshActorIndices().find((q) => q.id === id)?.poids;
-  it("structure-écran 3, réticence 2", () => {
+  it("structure-écran 3, réticence 2, mandat opaque 3, proche PPE 3", () => {
     expect(poids("structure_ecran")).toBe(3);
     expect(poids("reticence_info")).toBe(2);
+    expect(poids("agit_tiers_opaque")).toBe(3);
+    expect(poids("proche_ppe")).toBe(3);
+  });
+  it("un indice signalé = +3 sur Transparence (drapeau global, inchangé)", () => {
+    const a = fullPerson();
+    a.indices = freshActorIndices().map((q) =>
+      q.id === "proche_ppe" ? { ...q, reponse: q.flagValue } : q,
+    );
+    expect(actorPoints(a, clear(), "Transparence")).toBe(3);
   });
 });
 

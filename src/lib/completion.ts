@@ -70,7 +70,12 @@ export function actorCompletion(
 
   // Pièces dues au titre de la vigilance retenue (aucune si simplifiée).
   for (const p of assessment.piecesACollecter) {
-    const done = p.id === "identite" ? actor.pieceIdentiteDoc != null : false;
+    const done =
+      p.id === "identite"
+        ? actor.pieceIdentiteDoc != null
+        : p.id === "origine_fonds"
+          ? actor.origineFonds.trim().length > 0
+          : false;
     items.push({ id: `piece_${p.id}`, label: p.label, done, motif: p.motif });
   }
 
