@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Button, Card, Field, SectionTitle } from "@/components/ui";
 import { loadSettings, saveSettings } from "@/lib/storage";
-import { exportBlob, importBlob } from "@/lib/vault";
+import { changePassphrase, exportBlob, importBlob, regenerateRecovery } from "@/lib/vault";
+import { estimatePassphrase } from "@/lib/passphrase";
 import {
   GAFI_SNAPSHOT_DATE,
   gafiSnapshotAgeMonths,
@@ -22,6 +23,11 @@ export default function ParametresPage() {
   const [saved, setSaved] = useState(false);
   // Calculé au montage (client) pour éviter tout écart d'hydratation SSR.
   const [gafi, setGafi] = useState<{ stale: boolean; ageMois: number } | null>(null);
+  // Sécurité du coffre : changement de phrase + régénération de la clé.
+  const [newPass, setNewPass] = useState("");
+  const [newPass2, setNewPass2] = useState("");
+  const [passMsg, setPassMsg] = useState("");
+  const [freshRecovery, setFreshRecovery] = useState("");
 
   useEffect(() => {
     setSettings(loadSettings());
@@ -42,6 +48,35 @@ export default function ParametresPage() {
       setSaved(true);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Échec de l'enregistrement.");
+    }
+  }
+
+  async function doChangePass() {
+    setPassMsg("");
+    const st = estimatePassphrase(newPass);
+    if (!st.acceptable) return setPassMsg(st.hint);
+    if (newPass !== newPass2) return setPassMsg("Les deux saisies ne correspondent pas.");
+    try {
+      await changePassphrase(newPass);
+      setNewPass("");
+      setNewPass2("");
+      setPassMsg("✓ Phrase secrète mise à jour.");
+    } catch (err) {
+      setPassMsg(err instanceof Error ? err.message : "Échec du changement.");
+    }
+  }
+
+  async function doRegenRecovery() {
+    if (
+      !window.confirm(
+        "Régénérer la clé de récupération invalidera immédiatement l'ancienne. Continuer ?",
+      )
+    )
+      return;
+    try {
+      setFreshRecovery(await regenerateRecovery());
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Échec.");
     }
   }
 
@@ -311,6 +346,60 @@ export default function ParametresPage() {
           ⚠︎ La sauvegarde reste chiffrée : sans la phrase secrète correspondante,
           elle est illisible. Conservez la phrase séparément du fichier.
         </p>
+      </Card>
+
+      <Card className="mb-6">
+        <SectionTitle eyebrow="Coffre chiffré">Phrase secrète & clé de récupération</SectionTitle>
+        <p className="-mt-3 mb-4 text-[0.78rem] leading-relaxed text-muted">
+          La phrase chiffre une clé de données, elle-même sauvegardée sous votre{" "}
+          <strong>clé de récupération</strong>. Changer de phrase ne re-chiffre pas vos
+          dossiers ; la clé de récupération reste valable — sauf si vous la régénérez.
+        </p>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field
+            label="Nouvelle phrase secrète"
+            type="password"
+            value={newPass}
+            onChange={(e) => setNewPass(e.target.value)}
+            placeholder="Idéalement 4 mots"
+          />
+          <Field
+            label="Confirmer"
+            type="password"
+            value={newPass2}
+            onChange={(e) => setNewPass2(e.target.value)}
+            placeholder="Confirmer la phrase"
+          />
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <Button variant="ghost" onClick={doChangePass} disabled={!newPass}>
+            Changer la phrase secrète
+          </Button>
+          {passMsg && (
+            <span
+              className={`text-[0.74rem] ${passMsg.startsWith("✓") ? "text-risk-low" : "text-risk-high"}`}
+            >
+              {passMsg}
+            </span>
+          )}
+        </div>
+
+        <div className="mt-5 border-t border-line pt-4">
+          <Button variant="ghost" onClick={doRegenRecovery}>
+            Régénérer la clé de récupération
+          </Button>
+          {freshRecovery && (
+            <div className="mt-3">
+              <p className="mb-1 text-[0.74rem] text-risk-mid">
+                Nouvelle clé — notez-la hors de cet ordinateur (l'ancienne est désormais invalide) :
+              </p>
+              <div className="select-all rounded-md border border-line-strong bg-surface-2 p-3 text-center font-mono text-[0.95rem] tracking-wide text-ink">
+                {freshRecovery}
+              </div>
+            </div>
+          )}
+        </div>
       </Card>
 
       <Card className="mb-6">

@@ -14,6 +14,10 @@ test("création, rejet d'une mauvaise phrase, puis déverrouillage du coffre", a
   await page.getByPlaceholder("Confirmer la phrase secrète").fill(PASS);
   await page.getByRole("button", { name: "Chiffrer et continuer" }).click();
 
+  // Écran de clé de récupération (v2) : elle est affichée puis confirmée.
+  await expect(page.getByRole("heading", { name: "Votre clé de récupération" })).toBeVisible();
+  await page.getByRole("button", { name: "J'ai noté ma clé — continuer" }).click();
+
   // L'application est rendue.
   await expect(
     page.getByRole("heading", { name: "Que souhaitez-vous vérifier ?" }),
