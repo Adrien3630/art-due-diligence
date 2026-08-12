@@ -11,19 +11,29 @@
    • unlock   : coffre existant → saisir la phrase secrète.
 */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui";
+import { AutoLock } from "@/components/AutoLock";
 import {
   createVault,
   hasLegacyData,
   hasVault,
   isUnlocked,
+  lock,
   unlock,
 } from "@/lib/vault";
+import { loadSettings } from "@/lib/storage";
+import { estimatePassphrase } from "@/lib/passphrase";
 
 type Mode = "loading" | "create" | "migrate" | "unlock" | "ready";
 
-const MIN_LEN = 8;
+const METER_COLOR = [
+  "var(--color-risk-high)",
+  "var(--color-risk-high)",
+  "var(--color-risk-mid)",
+  "var(--color-risk-low)",
+  "var(--color-risk-low)",
+];
 
 export function VaultGate({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<Mode>("loading");
@@ -41,16 +51,36 @@ export function VaultGate({ children }: { children: ReactNode }) {
     })();
   }, []);
 
+  const strength = useMemo(() => estimatePassphrase(pass), [pass]);
+
   if (mode === "loading") return null;
-  if (mode === "ready") return <>{children}</>;
+  if (mode === "ready") {
+    const minutes = loadSettings().autoLockMinutes ?? 10;
+    return (
+      <>
+        <AutoLock
+          minutes={minutes}
+          onLock={() => {
+            lock();
+            setPass("");
+            setConfirm("");
+            setError("");
+            setMode("unlock");
+          }}
+        />
+        {children}
+      </>
+    );
+  }
 
   const creating = mode === "create" || mode === "migrate";
 
   async function submit() {
     setError("");
     if (creating) {
-      if (pass.length < MIN_LEN) {
-        setError(`Phrase secrète trop courte (au moins ${MIN_LEN} caractères).`);
+      const st = estimatePassphrase(pass);
+      if (!st.acceptable) {
+        setError(st.hint);
         return;
       }
       if (pass !== confirm) {
@@ -120,6 +150,28 @@ export function VaultGate({ children }: { children: ReactNode }) {
                 placeholder="Confirmer la phrase secrète"
                 aria-label="Confirmer la phrase secrète"
               />
+            )}
+            {creating && pass && (
+              <div aria-label="Force de la phrase secrète">
+                <div className="flex gap-1">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <span
+                      key={i}
+                      className="h-1.5 flex-1 rounded-full"
+                      style={{
+                        background:
+                          i <= strength.score ? METER_COLOR[strength.score] : "var(--color-surface-2)",
+                      }}
+                    />
+                  ))}
+                </div>
+                <p
+                  className="mt-1 text-[0.7rem]"
+                  style={{ color: strength.acceptable ? "var(--color-muted)" : METER_COLOR[strength.score] }}
+                >
+                  {strength.label} · {strength.hint}
+                </p>
+              </div>
             )}
             {error && <p className="text-[0.74rem] text-risk-high">{error}</p>}
             <Button {...({ type: "submit" } as object)} disabled={busy || !pass}>

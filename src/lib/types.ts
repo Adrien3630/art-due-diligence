@@ -425,4 +425,6 @@ export interface Settings {
   // dossier quitte la machine (cf. lib/timestamp.ts).
   horodatageActif: boolean;
   horodatageTsaUrl: string; // URL de l'autorité d'horodatage (RFC 3161)
+  // Verrouillage automatique du coffre après inactivité (minutes). 0 = jamais.
+  autoLockMinutes: number;
 }

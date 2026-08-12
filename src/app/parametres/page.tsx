@@ -270,7 +270,20 @@ export default function ParametresPage() {
 
       <Card className="mb-6">
         <SectionTitle eyebrow="Coffre chiffré">Sauvegarde & sécurité</SectionTitle>
-        <p className="-mt-3 mb-4 text-[0.78rem] leading-relaxed text-muted">
+        <div className="mb-4 max-w-xs">
+          <Field
+            label="Verrouillage auto après inactivité (minutes)"
+            type="number"
+            inputMode="numeric"
+            value={String(settings.autoLockMinutes)}
+            onChange={(e) => update({ autoLockMinutes: Math.max(0, Number(e.target.value) || 0) })}
+            hint="Le coffre se verrouille seul après ce délai sans activité. 0 = jamais. Défaut : 10 min."
+          />
+          <div className="mt-3">
+            <Button onClick={persist}>{saved ? "✓ Enregistré" : "Enregistrer"}</Button>
+          </div>
+        </div>
+        <p className="-mt-1 mb-4 text-[0.78rem] leading-relaxed text-muted">
           Vos données sont chiffrées (AES-GCM, clé dérivée de votre phrase secrète).
           Exportez une sauvegarde chiffrée à conserver hors de cet ordinateur —
           utile pour l'obligation de conservation (5 ans) et en cas de panne.
