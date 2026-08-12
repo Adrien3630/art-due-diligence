@@ -21,6 +21,13 @@ export interface EntityCandidates {
   immatriculation?: string; // SIREN (9 chiffres)
 }
 
+/** Un bénéficiaire effectif PROPOSÉ à partir d'un document sociétaire. */
+export interface BeneficiaryCandidate {
+  nom: string;
+  prenoms: string;
+  pourcentage: string; // part détectée, sans le « % »
+}
+
 /* ── Normalisation de dates ─────────────────────────────────────────── */
 
 /** « 12.05.1980 » / « 12/05/80 » / « 12 05 1980 » → « 1980-05-12 ». */
@@ -128,6 +135,71 @@ export function parseEntityText(text: string): EntityCandidates {
     firstMatch(text, /raison\s+sociale\s*[:\-]?\s*(.+)/i);
   if (denom) out.nom = denom.replace(/\s{2,}.*$/, "").trim();
   return out;
+}
+
+/* ── Cascade de bénéficiaires effectifs (UBO) — PROPOSITION ─────────── */
+
+// Étiquettes fréquentes à retirer avant d'isoler un nom de personne.
+const UBO_LABELS =
+  /b[ée]n[ée]ficiaire(?:\s+effectif)?|d[ée]tenteur|associ[ée]|g[ée]rant|pr[ée]sident|d[ée]tient|d[ée]tenant|part\s+de|du\s+capital|des?\s+parts?|droits?\s+de\s+vote/gi;
+
+/** Sépare « Jean DUPONT » → nom = patronyme (majuscules), prénoms = le reste. */
+function splitPersonName(raw: string): { nom: string; prenoms: string } {
+  const tokens = raw.split(/\s+/).filter(Boolean);
+  const caps = tokens.filter((t) => t.length > 1 && t === t.toUpperCase());
+  if (caps.length && caps.length < tokens.length) {
+    const nom = caps.join(" ");
+    const prenoms = tokens.filter((t) => !caps.includes(t)).join(" ");
+    return { nom, prenoms };
+  }
+  // Pas de distinction de casse : dernier mot = nom, le reste = prénoms.
+  if (tokens.length >= 2) {
+    return { nom: tokens[tokens.length - 1], prenoms: tokens.slice(0, -1).join(" ") };
+  }
+  return { nom: raw.trim(), prenoms: "" };
+}
+
+/**
+ * Reconstruit une CASCADE de bénéficiaires à partir du texte océrisé d'un
+ * document sociétaire (Kbis, statuts, déclaration DBE). Repère les lignes
+ * portant un pourcentage de détention et en extrait un nom.
+ *
+ * HONNÊTETÉ : ce n'est qu'une PROPOSITION à valider — l'humain contrôle chaque
+ * nœud (et corrige personne/entité) avant tout screening. On n'invente pas de
+ * détenteur : sans pourcentage lisible, on ne propose rien.
+ */
+export function parseBeneficiaries(text: string): BeneficiaryCandidate[] {
+  const out: BeneficiaryCandidate[] = [];
+  const pct = /(\d{1,3}(?:[.,]\d+)?)\s*(?:%|pour\s*cent)/i;
+
+  for (const line of text.split(/\r?\n/)) {
+    const pm = line.match(pct);
+    if (!pm) continue;
+    const share = Number(pm[1].replace(",", "."));
+    if (!Number.isFinite(share) || share <= 0 || share > 100) continue;
+
+    // Retire le pourcentage et les étiquettes, garde la portion « nom ».
+    const cleaned = line
+      .replace(pct, " ")
+      .replace(UBO_LABELS, " ")
+      .replace(/[.,;:()«»"]/g, " ");
+    const nameMatch = cleaned.match(
+      /([A-ZÀ-Ÿ][A-Za-zÀ-ÿ'’-]+(?:\s+[A-ZÀ-Ÿ][A-Za-zÀ-ÿ'’-]+){0,3})/,
+    );
+    if (!nameMatch) continue;
+    const { nom, prenoms } = splitPersonName(nameMatch[1].trim());
+    if (!nom || nom.length < 2) continue;
+    out.push({ nom, prenoms, pourcentage: pm[1].replace(",", ".") });
+  }
+
+  // Dédoublonnage par (nom, prénoms).
+  const seen = new Set<string>();
+  return out.filter((b) => {
+    const k = `${b.nom}|${b.prenoms}`.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 
 /* ── Moteur OCR (isolé, client-only) ────────────────────────────────── */

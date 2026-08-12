@@ -300,12 +300,57 @@ export default function ParametresPage() {
         </p>
       </Card>
 
+      <Card className="mb-6">
+        <SectionTitle eyebrow="Force probante (optionnel)">
+          Horodatage qualifié RFC 3161
+        </SectionTitle>
+        <p className="-mt-3 mb-4 text-[0.78rem] leading-relaxed text-muted">
+          Renforce la force probante d'un dossier en faisant contresigner son
+          empreinte par une autorité d'horodatage (eIDAS / RFC 3161).{" "}
+          <strong className="text-ink-soft">
+            Désactivé par défaut : c'est le seul appel réseau sortant de l'outil.
+          </strong>{" "}
+          Activé, seule l'empreinte SHA-256 du dossier quitte la machine — aucune
+          donnée nominative, aucun montant, aucun visuel.
+        </p>
+        <label className="flex cursor-pointer items-start gap-2.5">
+          <input
+            type="checkbox"
+            className="mt-1 accent-[var(--color-gold)]"
+            checked={settings.horodatageActif}
+            onChange={(e) => update({ horodatageActif: e.target.checked })}
+          />
+          <span className="text-sm text-ink">
+            Activer l'horodatage qualifié à la clôture des dossiers
+            <span className="block text-[0.72rem] text-muted">
+              En conscience : une empreinte irréversible est transmise à la TSA
+              choisie.
+            </span>
+          </span>
+        </label>
+        {settings.horodatageActif && (
+          <div className="mt-4 max-w-xl">
+            <Field
+              label="URL de l'autorité d'horodatage (TSA)"
+              value={settings.horodatageTsaUrl}
+              onChange={(e) => update({ horodatageTsaUrl: e.target.value })}
+              placeholder="https://freetsa.org/tsr"
+              hint="Endpoint RFC 3161 acceptant une requête application/timestamp-query."
+            />
+          </div>
+        )}
+        <div className="mt-5">
+          <Button onClick={persist}>{saved ? "✓ Enregistré" : "Enregistrer"}</Button>
+        </div>
+      </Card>
+
       <Card>
         <SectionTitle eyebrow="Confidentialité">Zéro cloud</SectionTitle>
         <ul className="space-y-2 text-sm text-ink-soft">
           {[
             "Les identités, photos et rapports ne sont jamais envoyés sur un serveur tiers.",
             "Seul le nom des parties (screening) et le nom de l'artiste (marché, si activé) sont transmis à vos fournisseurs, avec vos propres clés.",
+            "Si l'horodatage qualifié est activé (désactivé par défaut), seule l'empreinte SHA-256 d'un dossier — irréversible — est transmise à l'autorité choisie.",
             "L'historique est chiffré (AES-GCM) dans le stockage local de cet appareil ; il se verrouille et peut être effacé à tout moment.",
             "Aucune télémétrie, aucun traceur, aucun compte requis.",
           ].map((t, i) => (

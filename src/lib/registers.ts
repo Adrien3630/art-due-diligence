@@ -150,3 +150,39 @@ export const REGISTER_RESULT_LABEL: Record<RegisterCheck["resultat"], string> = 
   aucune: "Aucune correspondance",
   correspondance: "Correspondance trouvée",
 };
+
+/* ── Attestation de revue (honnête) ─────────────────────────────────── */
+
+export interface RegisterReview {
+  total: number;
+  constates: number; // résultats renseignés (aucune | correspondance)
+  restants: number; // encore « non vérifié »
+  correspondances: number;
+  tousConstates: boolean;
+}
+
+/** Synthèse de l'avancement de la revue des registres. */
+export function registerReview(checks: RegisterCheck[]): RegisterReview {
+  const constates = checks.filter((c) => c.resultat !== "non_verifie").length;
+  const correspondances = checks.filter((c) => c.resultat === "correspondance").length;
+  return {
+    total: checks.length,
+    constates,
+    restants: checks.length - constates,
+    correspondances,
+    tousConstates: checks.length > 0 && constates === checks.length,
+  };
+}
+
+/**
+ * Détail d'audit d'une ATTESTATION DE REVUE — l'humain déclare avoir consulté
+ * chaque registre et constaté les résultats. On n'invente rien : le texte
+ * reprend exactement ce qui a été constaté, registre par registre.
+ */
+export function attestationDetail(checks: RegisterCheck[], signataire: string): string {
+  const nom = signataire.trim() || "[signataire]";
+  const lignes = checks
+    .map((c) => `${c.registre} : ${REGISTER_RESULT_LABEL[c.resultat]}`)
+    .join(" ; ");
+  return `Revue des registres attestée par ${nom}. ${lignes}.`;
+}

@@ -9,7 +9,8 @@
   l'humain (on ouvre le moteur) ; on lit seulement les métadonnées EXIF du fichier.
 */
 
-import { Field, SectionTitle, SelectField } from "@/components/ui";
+import { useMemo } from "react";
+import { AutoField, Field, InlineAlert, SectionTitle, SelectField } from "@/components/ui";
 import { AuditList } from "@/components/AuditList";
 import { ImageDropzone } from "@/components/ImageDropzone";
 import { MarketPanel } from "@/components/MarketPanel";
@@ -21,6 +22,9 @@ import {
 } from "@/lib/registers";
 import { rebuildArtworkAudit } from "@/lib/scoring";
 import { readExifFromDataUrl } from "@/lib/exif";
+import { searchArtworks } from "@/lib/antecedents";
+import { suggest } from "@/lib/suggestions";
+import { loadHistory } from "@/lib/storage";
 import type {
   Artwork,
   ArtworkCategory,
@@ -246,6 +250,15 @@ export function ArtworkForm({
 }) {
   const set = (patch: Partial<Artwork>) => onChange({ ...artwork, ...patch });
 
+  const history = useMemo(() => loadHistory(), []);
+  const artisteSugg = useMemo(() => suggest(history, "artiste"), [history]);
+  const techniqueSugg = useMemo(() => suggest(history, "technique"), [history]);
+  // Antécédent inter-dossiers (#9) : œuvre proche déjà évaluée.
+  const antecedent = useMemo(() => {
+    const q = [artwork.titre, artwork.artiste].filter(Boolean).join(" ");
+    return searchArtworks(history, q, { limit: 1 })[0] ?? null;
+  }, [history, artwork.titre, artwork.artiste]);
+
   // Reporte le signal « prix incohérent » dans l'indicateur GAFI correspondant.
   const flagPrix = () =>
     set({
@@ -292,9 +305,31 @@ export function ArtworkForm({
             ))}
           </SelectField>
           <Field label="Titre" value={artwork.titre} onChange={(e) => set({ titre: e.target.value })} placeholder="Sans titre" />
-          <Field label="Artiste" value={artwork.artiste} onChange={(e) => set({ artiste: e.target.value })} placeholder="—" />
+          <AutoField label="Artiste" value={artwork.artiste} onChange={(e) => set({ artiste: e.target.value })} placeholder="—" suggestions={artisteSugg} />
+          {antecedent && (
+            <div className="col-span-2 -mt-2">
+              <InlineAlert tone="info">
+                Œuvre proche déjà au dossier : <strong>{antecedent.nom}</strong> —{" "}
+                {new Date(antecedent.date).toLocaleDateString("fr-FR")}.{" "}
+                <button
+                  type="button"
+                  onClick={() =>
+                    set({
+                      provenance: antecedent.artwork.provenance,
+                      registres: antecedent.artwork.registres,
+                      marquesDos: antecedent.artwork.marquesDos,
+                      premiereApparition: antecedent.artwork.premiereApparition,
+                    })
+                  }
+                  className="font-medium underline underline-offset-2"
+                >
+                  Réimporter provenance & registres
+                </button>
+              </InlineAlert>
+            </div>
+          )}
           <Field label="Année" value={artwork.annee} onChange={(e) => set({ annee: e.target.value })} placeholder="1962" hint="Sert au contrôle spoliation 1933-1945 et aux incohérences." />
-          <Field label="Technique" value={artwork.technique} onChange={(e) => set({ technique: e.target.value })} placeholder="Huile sur toile" />
+          <AutoField label="Technique" value={artwork.technique} onChange={(e) => set({ technique: e.target.value })} placeholder="Huile sur toile" suggestions={techniqueSugg} />
           <Field label="Dimensions" value={artwork.dimensions} onChange={(e) => set({ dimensions: e.target.value })} placeholder="73 × 92 cm" />
           {showEdition && (
             <div className="col-span-2">

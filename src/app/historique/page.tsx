@@ -196,6 +196,11 @@ export default function HistoriquePage() {
                         À revoir
                       </span>
                     )}
+                    {d.aFinaliser && (
+                      <span className="shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-[0.6rem] font-medium text-muted">
+                        À finaliser
+                      </span>
+                    )}
                   </span>
                   <div className="flex items-center gap-3 justify-self-end">
                     <RiskBadge niveau={niveau} size="sm" />

@@ -6,10 +6,11 @@
   (espèces, paiement par un tiers, urgence).
 */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Card,
+  ProgressGauge,
   RiskBadge,
   SectionTitle,
   SubScores,
@@ -34,11 +35,14 @@ import {
   freshComportement,
   TRANSACTION_MODE_LABEL,
 } from "@/lib/scoring";
+import { transactionCompletion } from "@/lib/completion";
 import { appendEvent, buildTrail } from "@/lib/audit";
 import { classifyMatches } from "@/lib/classify";
 import { emptyActor, emptyArtwork, newId } from "@/lib/factories";
-import { loadHistory, loadSettings } from "@/lib/storage";
+import { clearDraft, loadDraft, loadHistory, loadSettings } from "@/lib/storage";
+import { useAutosave } from "@/lib/useAutosave";
 import { takeReopen } from "@/lib/reopen";
+import { takeWorkbench } from "@/lib/workbench";
 import type {
   Actor,
   AuditAnswer,
@@ -50,6 +54,26 @@ import type {
   TransactionMode,
   TransactionParty,
 } from "@/lib/types";
+
+const DRAFT_KEY = "transaction";
+const PREVIEW_SCREENING: ScreeningResult = {
+  sujet: "",
+  status: "clear",
+  matches: [],
+  listesInterrogees: [],
+  fournisseur: "",
+  horodatage: "",
+  desambiguise: false,
+};
+
+interface TxDraft {
+  mode: TransactionMode;
+  acheteur: Actor;
+  vendeur: Actor;
+  artwork: Artwork;
+  comportement: AuditAnswer[];
+  montant: string;
+}
 
 async function screenParty(
   actor: Actor,
@@ -138,8 +162,36 @@ export default function TransactionPage() {
         setMontant(d.montantEur != null ? String(d.montantEur) : "");
         setResult(d);
       }
+      return;
+    }
+    // #4 — reprise d'un acteur / d'une œuvre transmis depuis un autre module.
+    const wb = takeWorkbench();
+    if (wb) {
+      if (wb.actor) {
+        if (wb.actor.role === "vendeur") setVendeur({ ...wb.actor });
+        else setAcheteur({ ...wb.actor, role: "acheteur" });
+      }
+      if (wb.artwork) setArtwork(wb.artwork);
+      return;
+    }
+    // #2 — restauration d'un brouillon auto-sauvegardé.
+    const draft = loadDraft<TxDraft>(DRAFT_KEY);
+    if (draft) {
+      setMode(draft.mode);
+      setAcheteur(draft.acheteur);
+      setVendeur(draft.vendeur);
+      setArtwork(draft.artwork);
+      setComportement(draft.comportement);
+      setMontant(draft.montant);
     }
   }, []);
+
+  // #2 — auto-save de l'ensemble du formulaire (tant qu'aucun dossier n'est figé).
+  const draftValue = useMemo<TxDraft>(
+    () => ({ mode, acheteur, vendeur, artwork, comportement, montant }),
+    [mode, acheteur, vendeur, artwork, comportement, montant],
+  );
+  useAutosave(DRAFT_KEY, draftValue, !result);
 
   // Parties réellement évaluées selon le mode d'opération.
   const showAcheteur = mode !== "achat";
@@ -158,6 +210,23 @@ export default function TransactionPage() {
   const seuilEur = settings?.seuilVigilanceEur ?? 10000;
   // Montant saisi → alimente le verdict de cohérence de prix dans l'œuvre.
   const montantEur = montant.trim() ? Number(montant.replace(/[^\d.]/g, "")) : null;
+
+  // Jauge de complétion en direct (#6) — prévisualisation sans screening.
+  const completion = useMemo(() => {
+    const preview = (a: Actor) => ({
+      actor: a,
+      assessment: assessActor(a, PREVIEW_SCREENING, [], {
+        seuilVigilanceEur: seuilEur,
+        montantEur,
+      }),
+    });
+    return transactionCompletion({
+      montantEur,
+      acheteur: showAcheteur ? preview(acheteur) : null,
+      vendeur: showVendeur ? preview(vendeur) : null,
+      oeuvre: artwork,
+    });
+  }, [showAcheteur, showVendeur, acheteur, vendeur, artwork, montantEur, seuilEur]);
 
   async function lancer() {
     if (!settings) return;
@@ -219,6 +288,7 @@ export default function TransactionPage() {
     setComportement(freshComportement());
     setMontant("");
     setResult(null);
+    clearDraft(DRAFT_KEY);
   }
 
   // Faux positifs sur une partie : recalcule son volet, ré-agrège la transaction
@@ -352,6 +422,12 @@ export default function TransactionPage() {
           </div>
           <AuditList answers={comportement} onChange={setComportement} />
         </Card>
+
+        {!result && (
+          <Card>
+            <ProgressGauge pct={completion.pct} nextStep={completion.nextStep} />
+          </Card>
+        )}
       </div>
 
       <div className="mt-6 flex items-center gap-4">

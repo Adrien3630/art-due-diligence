@@ -4,6 +4,7 @@ import {
   parseMrz,
   parseIdentityText,
   parseEntityText,
+  parseBeneficiaries,
 } from "../ocr";
 
 const NOW = new Date("2026-08-11T00:00:00Z");
@@ -71,5 +72,33 @@ describe("parseEntityText — Kbis / extrait", () => {
     const r = parseEntityText(text);
     expect(r.immatriculation).toBe("123456789");
     expect(r.nom).toBe("GALERIE LUMIÈRE SARL");
+  });
+});
+
+describe("parseBeneficiaries — cascade UBO (proposition)", () => {
+  it("propose des bénéficiaires à partir de lignes avec pourcentage", () => {
+    const text = [
+      "Bénéficiaires effectifs :",
+      "Bénéficiaire effectif : Jean DUPONT — 30 %",
+      "Marie-Claire MARTIN détient 25% du capital",
+      "Société sans détenteur nommé",
+    ].join("\n");
+    const r = parseBeneficiaries(text);
+    expect(r).toHaveLength(2);
+    expect(r[0]).toMatchObject({ nom: "DUPONT", prenoms: "Jean", pourcentage: "30" });
+    expect(r[1]).toMatchObject({ nom: "MARTIN", prenoms: "Marie-Claire", pourcentage: "25" });
+  });
+
+  it("n'invente rien sans pourcentage lisible", () => {
+    expect(parseBeneficiaries("Aucune donnée exploitable ici.")).toEqual([]);
+  });
+
+  it("dédoublonne les détenteurs répétés", () => {
+    const text = ["Jean DUPONT 30 %", "Jean DUPONT 30 %"].join("\n");
+    expect(parseBeneficiaries(text)).toHaveLength(1);
+  });
+
+  it("ignore un pourcentage hors bornes", () => {
+    expect(parseBeneficiaries("Truc MUCHE 250 %")).toEqual([]);
   });
 });

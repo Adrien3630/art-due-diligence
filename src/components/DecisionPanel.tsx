@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui";
+import { SignaturePad } from "@/components/SignaturePad";
 import type { DecisionType, HumanDecision } from "@/lib/types";
 
 export const DECISION_LABEL: Record<DecisionType, string> = {
@@ -38,10 +39,13 @@ export function DecisionPanel({
   const [signataire, setSignataire] = useState(
     decision?.signataire || signataireDefaut,
   );
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | undefined>(
+    decision?.signatureDataUrl,
+  );
 
   function save() {
     if (!type) return;
-    onSave({ type, motif, signataire, horodatage: new Date().toISOString() });
+    onSave({ type, motif, signataire, signatureDataUrl, horodatage: new Date().toISOString() });
   }
 
   return (
@@ -94,6 +98,10 @@ export function DecisionPanel({
             placeholder="Nom, qualité"
           />
         </label>
+      </div>
+
+      <div className="mt-3 sm:max-w-sm">
+        <SignaturePad value={signatureDataUrl} onChange={setSignatureDataUrl} />
       </div>
 
       <div className="mt-3 flex items-center gap-3">

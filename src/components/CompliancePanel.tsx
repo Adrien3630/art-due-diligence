@@ -10,10 +10,10 @@
 */
 
 import { useMemo, useState } from "react";
-import { Button, SectionTitle } from "@/components/ui";
+import { Button, InlineAlert, SectionTitle } from "@/components/ui";
 import { DecisionPanel, DECISION_LABEL } from "@/components/DecisionPanel";
 import { AuditTimeline } from "@/components/AuditTimeline";
-import { downloadReport } from "@/components/ReportDocument";
+import { ReportPreviewModal } from "@/components/ReportDocument";
 import { appendEvent } from "@/lib/audit";
 import { buildTracfinDraft, downloadTracfin } from "@/lib/tracfin";
 import {
@@ -23,14 +23,23 @@ import {
   DGTRESOR_EMAIL,
   REGISTRE_GELS_URL,
 } from "@/lib/freeze";
+import { attestationDetail, registerReview } from "@/lib/registers";
+import { isTimestampingEnabled, requestTimestamp } from "@/lib/timestamp";
 import { upsertDossier } from "@/lib/storage";
 import { PENAL_RESPONSIBILITY_NOTICE } from "@/lib/scoring";
-import type { Dossier, HumanDecision, RiskLevel, Settings } from "@/lib/types";
+import type { Dossier, HumanDecision, RegisterCheck, RiskLevel, Settings } from "@/lib/types";
 
 function dossierNiveau(d: Dossier): RiskLevel {
   if (d.kind === "acteur") return d.assessment.niveau;
   if (d.kind === "oeuvre") return d.assessment.niveau;
   return d.niveau;
+}
+
+/** Registres portés par le dossier (œuvre seule ou œuvre d'une transaction). */
+function dossierRegistres(d: Dossier): RegisterCheck[] {
+  if (d.kind === "oeuvre") return d.artwork.registres;
+  if (d.kind === "transaction") return d.oeuvre.artwork.registres;
+  return [];
 }
 
 export function CompliancePanel<D extends Dossier>({
@@ -50,6 +59,14 @@ export function CompliancePanel<D extends Dossier>({
   const [showFreeze, setShowFreeze] = useState(false);
   const [freezeCopied, setFreezeCopied] = useState(false);
   const [freezeLogged, setFreezeLogged] = useState(false);
+  const [showPdf, setShowPdf] = useState(false);
+  const [attesting, setAttesting] = useState(false);
+  const [stamping, setStamping] = useState(false);
+
+  const registres = dossierRegistres(dossier);
+  const revue = registerReview(registres);
+  const dejaAtteste = dossier.auditTrail.some((e) => e.type === "registres_attestes");
+  const horodatageActif = isTimestampingEnabled(settings);
 
   const niveau = dossierNiveau(dossier);
   const isDeclaration = dossier.decision?.type === "declaration";
@@ -99,6 +116,41 @@ export function CompliancePanel<D extends Dossier>({
     );
     setSaved(false);
     onChange({ ...dossier, decision, auditTrail: trail } as D);
+  }
+
+  // #1 — Attestation de revue des registres : consigne un constat HUMAIN.
+  async function attesterRegistres() {
+    setAttesting(true);
+    try {
+      const trail = await appendEvent(
+        dossier.auditTrail,
+        "registres_attestes",
+        attestationDetail(registres, settings.signataire),
+      );
+      onChange({ ...dossier, auditTrail: trail } as D);
+    } finally {
+      setAttesting(false);
+    }
+  }
+
+  // #10 — Horodatage qualifié : seule l'empreinte (dernier hash de la chaîne) sort.
+  async function horodater() {
+    const empreinte = dossier.auditTrail.at(-1)?.hash;
+    if (!empreinte) return;
+    setStamping(true);
+    try {
+      const token = await requestTimestamp(empreinte, settings.horodatageTsaUrl);
+      const trail = await appendEvent(
+        dossier.auditTrail,
+        "horodatage_appose",
+        `Empreinte ${empreinte.slice(0, 16)}… horodatée (RFC 3161) par ${settings.horodatageTsaUrl}`,
+      );
+      onChange({ ...dossier, horodatage: token, auditTrail: trail } as D);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Horodatage impossible.");
+    } finally {
+      setStamping(false);
+    }
   }
 
   async function archive() {
@@ -224,6 +276,41 @@ export function CompliancePanel<D extends Dossier>({
         </div>
       )}
 
+      {registres.length > 0 && (
+        <div className="mt-4 rounded-md border border-line bg-surface-2 p-4">
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <span className="label-eyebrow text-gold">Attestation de revue des registres</span>
+            <span className="text-[0.7rem] text-muted">
+              {revue.constates}/{revue.total} constaté{revue.constates > 1 ? "s" : ""}
+            </span>
+          </div>
+          <p className="mb-2 text-[0.72rem] leading-relaxed text-muted">
+            L'outil n'affirme jamais « aucun match » à votre place. Attestez avoir
+            consulté chaque registre et constaté les résultats : la déclaration est
+            consignée telle quelle dans la piste d'audit.
+          </p>
+          {!revue.tousConstates && (
+            <InlineAlert tone="warn">
+              {revue.restants} registre{revue.restants > 1 ? "s" : ""} encore « non vérifié » —
+              renseignez chaque résultat avant d'attester.
+            </InlineAlert>
+          )}
+          {dejaAtteste ? (
+            <p className="mt-2 text-[0.74rem] text-risk-low">✓ Revue des registres attestée et consignée.</p>
+          ) : (
+            <div className="mt-2">
+              <Button
+                variant="ghost"
+                onClick={attesterRegistres}
+                disabled={!revue.tousConstates || attesting}
+              >
+                {attesting ? "Consignation…" : "Attester la revue des registres"}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       <p className="mt-4 rounded-md border border-line bg-surface-2 p-3 text-[0.72rem] leading-relaxed text-ink-soft">
         <strong className="font-medium">Responsabilité.</strong> {PENAL_RESPONSIBILITY_NOTICE}
       </p>
@@ -233,12 +320,15 @@ export function CompliancePanel<D extends Dossier>({
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <Button onClick={() => downloadReport(dossier)}>
-          Exporter le dossier (PDF)
-        </Button>
+        <Button onClick={() => setShowPdf(true)}>Aperçu du dossier (PDF)</Button>
         <Button variant="ghost" onClick={archive} disabled={!canArchive}>
           {saved ? "✓ Dossier archivé" : "Archiver le dossier"}
         </Button>
+        {horodatageActif && (
+          <Button variant="ghost" onClick={horodater} disabled={stamping || !dossier.auditTrail.length}>
+            {stamping ? "Horodatage…" : dossier.horodatage ? "✓ Horodaté (RFC 3161)" : "Horodater (RFC 3161)"}
+          </Button>
+        )}
         <Button variant="ghost" onClick={onReset}>
           Nouveau dossier
         </Button>
@@ -248,6 +338,14 @@ export function CompliancePanel<D extends Dossier>({
           </span>
         )}
       </div>
+      {horodatageActif && (
+        <p className="mt-2 text-[0.68rem] leading-relaxed text-muted">
+          Horodatage qualifié activé : seule l'empreinte SHA-256 du dossier est
+          transmise à l'autorité d'horodatage — aucune donnée nominative.
+        </p>
+      )}
+
+      <ReportPreviewModal dossier={dossier} open={showPdf} onClose={() => setShowPdf(false)} />
     </div>
   );
 }
