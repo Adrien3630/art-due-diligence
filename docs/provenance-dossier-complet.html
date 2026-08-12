@@ -150,6 +150,8 @@
   <a href="#juridique">14. Cadre juridique</a>
   <a href="#tests">15. Tests &amp; CI</a>
   <a href="#limites">16. Limites &amp; feuille de route</a>
+  <div class="grp">Évolutions</div>
+  <a href="#ergo">17. Ergonomie &amp; sécurité</a>
 </nav>
 
 <main>
@@ -163,7 +165,7 @@
   <div class="meta">
     <span>Next.js 16 · React 19</span>
     <span>100 % local · coffre chiffré AES-GCM</span>
-    <span>155 tests · 4 E2E · CI verte</span>
+    <span>194 tests · 6 E2E · CI verte</span>
     <span>Snapshot GAFI : juin 2026</span>
     <span>Mis à jour le 2026-08-12</span>
   </div>
@@ -176,6 +178,16 @@ aucune analyse d'image, revue humaine) : <strong>parser de dates floues</strong>
 <strong>modes de transaction</strong> (vente / achat / intermédiation), <strong>rappel CI de péremption GAFI</strong>,
 <strong>ouverture groupée des registres</strong>, <strong>rappel &amp; priorisation de la vigilance</strong>,
 et <strong>OCR local assisté</strong> des pièces.</div>
+
+<div class="note ok" style="margin:0 0 8px"><span class="lbl">Ergonomie &amp; sécurité — 13 nouvelles fonctionnalités (août 2026)</span>
+Une seconde vague, détaillée en <a href="#ergo">partie 17</a>, ajoute confort de saisie et force probante <em>sans
+déroger</em> aux principes fondateurs : <strong>auto-save chiffré</strong>, <strong>jauge de complétion</strong>,
+<strong>autocomplétion locale</strong>, <strong>recherche d'antécédents floue</strong>, <strong>bascule
+inter-modules</strong>, <strong>aperçu PDF en modale</strong>, <strong>filigrane &amp; signature</strong>,
+<strong>cascade UBO assistée</strong>, <strong>mode saisie rapide « foire »</strong>. Les deux points sensibles ont été
+implémentés en <strong>version honnête</strong> : l'<strong>attestation de revue des registres</strong> reste un
+constat <em>humain</em> consigné (jamais d'auto-« aucun match »), et l'<strong>horodatage RFC 3161</strong> est
+<strong>opt-in, désactivé par défaut</strong> (seule l'empreinte SHA-256 sort de la machine).</div>
 
 <!-- ============ 1 ============ -->
 <h2 id="vue"><span class="num">01</span>Vue d'ensemble &amp; positionnement</h2>
@@ -208,8 +220,10 @@ faux « rien à signaler ». Quand une donnée n'est pas probante, l'outil l'aff
 
 <div class="feat"><div class="ic">🔒</div><div class="bd"><h4>Tout-local, zéro cloud</h4>
 <p>Aucun compte, aucune télémétrie. Les <strong>seules</strong> sorties réseau sont le <em>nom des parties</em>
-(vers le fournisseur de screening) et le <em>nom de l'artiste</em> (vers le fournisseur de marché, si activé),
-avec les clés API du galeriste. Pièces d'identité et photos d'œuvre restent des <code>data-URL</code> jamais transmises.</p></div></div>
+(vers le fournisseur de screening), le <em>nom de l'artiste</em> (vers le fournisseur de marché, si activé) et —
+<span class="chip low">nouveau</span> si l'horodatage qualifié est <em>activé</em> (désactivé par défaut) — la seule
+<em>empreinte SHA-256</em> irréversible d'un dossier, avec les clés API du galeriste. Pièces d'identité et photos
+d'œuvre restent des <code>data-URL</code> jamais transmises.</p></div></div>
 
 <div class="feat"><div class="ic">🛡️</div><div class="bd"><h4>Sécurité au repos</h4>
 <p>Coffre <strong>AES-GCM 256 bits</strong>, clé dérivée par <strong>PBKDF2-SHA256, 210 000 itérations</strong>,
@@ -226,7 +240,9 @@ responsable</strong> ; l'outil assiste, il n'exonère pas.</p></div></div>
 
 <div class="feat"><div class="ic">🧾</div><div class="bd"><h4>Piste d'audit inviolable (détectable)</h4>
 <p>Chaque événement est chaîné par hash SHA-256 au précédent : toute altération est <em>détectable</em>
-(<code>verifyTrail</code>). Ce n'est pas un horodatage légal opposable (RFC 3161 reste une option future).</p></div></div>
+(<code>verifyTrail</code>). L'intégrité locale n'est pas un horodatage légal opposable — pour cela, un
+<strong>horodatage qualifié RFC 3161</strong> est désormais disponible <span class="chip low">nouveau</span>
+<em>en option, désactivée par défaut</em> (voir <a href="#ergo">partie 17</a>).</p></div></div>
 
 <div class="feat"><div class="ic">👤</div><div class="bd"><h4>Minimisation RGPD</h4>
 <p>Approche par les risques : capture minimale, pièces réclamées <em>seulement</em> si le risque l'exige, avec
@@ -303,7 +319,19 @@ erreur de screening, risque-pays dérivé du pays <em>et</em> de la nationalité
 <li><strong>OCR local assisté</strong> <span class="chip low">nouveau</span> : une fois la pièce déposée, un bouton
 « Analyser la pièce » lit le document <em>dans le navigateur</em> (tesseract.js — l'image ne quitte jamais la machine)
 et <strong>propose</strong> des champs (nom, prénoms, naissance, nationalité ; ou raison sociale + SIREN pour une entité).
-Les champs sont <strong>éditables</strong> et ne s'appliquent qu'à votre validation — jamais d'autofill silencieux.</li>
+Les champs sont <strong>éditables</strong> et ne s'appliquent qu'à votre validation — jamais d'autofill silencieux.
+<span class="chip low">étendu</span> Pour une <strong>entité</strong>, l'OCR d'un Kbis / de statuts <strong>propose une
+cascade de bénéficiaires effectifs</strong> (nom, part) que vous contrôlez nœud par nœud avant tout screening.</li>
+<li><strong>Filigranage local</strong> <span class="chip low">nouveau</span> : un bouton incruste dans les <em>pixels</em>
+de la pièce (canvas, sur l'appareil) un filigrane « Due Diligence LCB-FT · galerie · date » — protection contre le
+détournement, sans rien transmettre. Une <strong>signature manuscrite</strong> peut être tracée à la clôture et jointe au PDF.</li>
+<li><strong>Antécédents inter-dossiers</strong> <span class="chip low">nouveau</span> : à la saisie du nom, l'outil
+signale un profil <em>proche</em> déjà évalué (recherche floue, tolérante aux fautes) et propose de le réimporter —
+il <strong>propose</strong>, ne fusionne jamais d'office. Les champs récurrents (nationalité, pays, forme juridique)
+sont <strong>auto-complétés</strong> depuis le coffre.</li>
+<li><strong>Jauge de complétion</strong> <span class="chip low">nouveau</span> : une barre indique en direct le
+pourcentage de dossier prêt et la <em>prochaine étape</em> (« Date de naissance », « Origine des fonds à
+documenter »…), calée sur le niveau de vigilance retenu.</li>
 <li><strong>Sortie</strong> : niveau de vigilance (tier), sous-scores explicables, pièces à collecter justifiées.</li>
 </ul>
 <figure class="tall">
@@ -329,7 +357,10 @@ désormais interprétées de façon prudente pour ne pas rater ce trou.</li>
 MNR/Rose-Valland, ERR, Central Registry). Liens de recherche pré-remplis ; l'humain <em>constate</em> et consigne.
 <span class="chip low">nouveau</span> Un <strong>compteur « X/N vérifiés »</strong> et un bouton d'<strong>ouverture
 groupée</strong> (« Ouvrir les N recherches à vérifier ») fluidifient le travail — sans jamais cocher « aucun match »
-à votre place.</li>
+à votre place. <span class="chip low">nouveau</span> Une fois chaque registre constaté, une <strong>attestation de
+revue</strong> consigne dans la piste d'audit que <em>vous</em> avez consulté et constaté les résultats (reprise
+fidèle du constaté, registre par registre) — c'est la version <em>honnête</em> de la « case unique de conformité »,
+sans interrogation automatique des bases ni score de similarité.</li>
 <li><strong>Authenticité &amp; titre</strong> — checklist adaptée (catalogue raisonné, certificat, litige, CITES, édition…).</li>
 <li><strong>Cote de l'artiste</strong> — comparables de marché &amp; cohérence de prix (optionnel).</li>
 <li><strong>Indicateurs GAFI</strong> — 5 drapeaux du rapport GAFI 2023 (œuvre « fraîche au marché », réticence…).</li>
@@ -366,6 +397,11 @@ réellement évaluées, et donc les pièces demandées et le contenu du rapport 
 <p class="muted" style="font-size:.9rem">En vente/achat, la galerie est sa propre contrepartie et n'est pas
 screenée. L'agrégation prend le pire des sous-scores <em>parmi les parties présentes</em>, sans pénalité pour une
 partie absente.</p>
+<div class="note ok"><span class="lbl">Bascule inter-modules &amp; auto-save <span class="chip low">nouveau</span></span>
+Depuis les modules Acteur ou Œuvre, un bouton « <strong>Utiliser dans une transaction →</strong> » transporte la
+saisie en cours vers ce module <em>sans re-saisie</em> (établi de travail en mémoire). Et tant qu'un dossier n'est
+pas figé, chaque champ est <strong>auto-sauvegardé</strong> dans le coffre chiffré : un rafraîchissement accidentel
+ne perd rien (le formulaire est restauré au montage).</div>
 <figure class="tall">
   <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Module Transaction — sélecteur de mode <span class="scroll-hint">· faites défiler</span></div>
   <div class="shotwrap"><img src="./assets/09-transaction-mode.png" alt="Sélecteur de mode d'opération de la transaction"></div>
@@ -542,8 +578,10 @@ ajoute un événement <code>{seq, horodatage, type, detail, hashPrec, hash}</cod
 de l'événement précédent (à partir d'un <code>GENESIS</code>). Le composant <code>AuditTimeline</code> vérifie
 l'intégrité de la chaîne au montage et affiche « ✓ intégrité vérifiée » ou « ⚠ chaîne altérée ».</p>
 <div class="note"><span class="lbl">Portée honnête</span>
-L'intégrité est <em>détectable</em> (on sait si la chaîne a été modifiée), mais ce n'est pas un horodatage légal
-opposable. Un horodatage qualifié (RFC 3161) reste une évolution possible.</div>
+L'intégrité est <em>détectable</em> (on sait si la chaîne a été modifiée), mais ce n'est pas en soi un horodatage
+légal opposable. <span class="chip low">nouveau</span> Pour renforcer la force probante, un <strong>horodatage
+qualifié RFC 3161</strong> peut désormais contresigner l'empreinte du dossier auprès d'une autorité d'horodatage —
+<em>opt-in, désactivé par défaut</em> ; seule l'empreinte SHA-256 quitte la machine (voir <a href="#ergo">partie 17</a>).</div>
 
 <!-- ============ 11 ============ -->
 <h2 id="historique"><span class="num">11</span>Historique local &amp; vigilance continue</h2>
@@ -553,7 +591,8 @@ permet de rouvrir un dossier (il réhydrate l'écran d'origine), de régénérer
   <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Historique local</div>
   <div class="shotwrap"><img src="./assets/07-historique.png" alt="Historique local des dossiers"></div>
   <figcaption><b>Historique.</b> Chaque dossier archivé est listé avec son niveau et sa date. Un badge
-  « À revoir » apparaît une fois l'intervalle de revue dépassé.</figcaption>
+  « À revoir » apparaît une fois l'intervalle de revue dépassé ; un badge <b>« À finaliser »</b>
+  <span class="chip low">nouveau</span> distingue les dossiers ébauchés en mode saisie rapide (foire).</figcaption>
 </figure>
 <div class="note info"><span class="lbl">Re-screening en un clic</span>
 Passé l'intervalle configuré (défaut 12 mois), <code>vigilanceDue</code> marque le dossier « À revoir ».
@@ -620,10 +659,12 @@ ci-dessus. Le détail sourcé (avec URLs Légifrance) figure dans <code>BAREME_A
 <!-- ============ 15 ============ -->
 <h2 id="tests"><span class="num">15</span>Qualité : tests &amp; intégration continue</h2>
 <div class="grid3">
-<div class="card"><h4>155 tests unitaires</h4><p style="font-size:.88rem">Vitest — scoring, dates, crypto, coffre,
-juridictions, marché, audit, monitoring, registres, OCR (parseurs), routes API…</p></div>
-<div class="card"><h4>4 parcours E2E</h4><p style="font-size:.88rem">Playwright (Chromium) : coffre, acteur,
-œuvre, transaction — parcours réels dans un navigateur, sur serveur de production en CI.</p></div>
+<div class="card"><h4>194 tests unitaires</h4><p style="font-size:.88rem">Vitest — scoring, dates, crypto, coffre,
+juridictions, marché, audit, monitoring, registres, OCR (parseurs) &amp; cascade UBO, antécédents (Levenshtein),
+suggestions, complétion, filigrane, horodatage RFC 3161 (DER), routes API…</p></div>
+<div class="card"><h4>6 parcours E2E</h4><p style="font-size:.88rem">Playwright (Chromium) : coffre, acteur,
+œuvre, transaction, jauge + bascule inter-modules, saisie rapide foire — parcours réels dans un navigateur, sur
+serveur de production en CI.</p></div>
 <div class="card"><h4>Verrou du barème</h4><p style="font-size:.88rem"><code>bareme.test.ts</code> fige chaque
 valeur chiffrée : toute dérive doc↔code casse la CI.</p></div>
 </div>
@@ -644,8 +685,64 @@ reste non reconnue (sans faux positif).</li>
 <li><strong>Comparables de marché non archivés</strong> — l'humain reporte sa conclusion via l'indicateur prix.</li>
 <li><strong>Barème non validé juridiquement</strong> — c'est le verrou bloquant pour une mise en prod défendable.</li>
 </ul>
-<p class="muted">Évolutions envisagées : horodatage qualifié RFC 3161, portage desktop Tauri, connecteurs de
-marché supplémentaires, données de langue OCR embarquées (hors-ligne total), actualisation semi-automatique des listes GAFI.</p>
+<p class="muted">Évolutions envisagées : portage desktop Tauri, connecteurs de marché supplémentaires, données de
+langue OCR embarquées (hors-ligne total), actualisation semi-automatique des listes GAFI. <span class="chip low">livré</span>
+L'horodatage qualifié RFC 3161 est désormais disponible <em>en option</em> (désactivé par défaut).</p>
+
+<!-- ============ 17 ============ -->
+<h2 id="ergo"><span class="num">17</span>Ergonomie &amp; sécurité — 13 nouvelles fonctionnalités</h2>
+<p>Cette vague vise à <strong>fluidifier la saisie</strong> du galeriste et à <strong>renforcer la force
+probante</strong> des dossiers, en restant strictement dans le cadre des <a href="#contraintes">contraintes
+transversales</a>. Deux fonctionnalités demandées contredisaient, telles quelles, les principes fondateurs
+(auto-interrogation des registres avec score de similarité ; appel réseau systématique) : elles ont été
+implémentées dans leur <strong>version honnête</strong>, décrite ci-dessous.</p>
+
+<div class="note info"><span class="lbl">Arbitrage : deux fonctionnalités bridées en version honnête</span>
+<strong>#1 Registres</strong> → pas d'auto-query ni de score de similarité (qui supposeraient une analyse d'image et
+une sortie cloud non maîtrisée) : à la place, une <em>attestation de revue humaine</em> consignée, reprenant fidèlement
+le constaté. <strong>#10 Horodatage RFC 3161</strong> → <em>opt-in, désactivé par défaut</em> ; c'est le seul appel
+réseau sortant hors screening/marché, et seule l'empreinte SHA-256 (irréversible) du dossier quitte la machine.</div>
+
+<table>
+<thead><tr><th style="width:34px">#</th><th>Fonctionnalité</th><th>Ce qu'elle fait — approche honnête</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><strong>Attestation de revue registres</strong></td><td>Constat <em>humain</em> consigné dans la piste d'audit (<code>registres_attestes</code>) une fois chaque registre renseigné. Aucune interrogation automatique, aucun « aucun match » présumé.</td></tr>
+<tr><td>2</td><td><strong>Auto-save continu</strong></td><td>Brouillons chiffrés (AES-GCM / IndexedDB) avec anti-rebond ; le formulaire est restauré au montage. Aucune perte sur rafraîchissement.</td></tr>
+<tr><td>3</td><td><strong>PDF 1-clic</strong></td><td>Aperçu du rapport dans une <em>modale</em> (iframe sur blob local) + téléchargement direct. Rien ne sort ; le blob est révoqué à la fermeture.</td></tr>
+<tr><td>4</td><td><strong>Bascule inter-modules</strong></td><td>« Utiliser dans une transaction → » transporte l'acteur / l'œuvre en cours vers le module Transaction sans re-saisie (établi de travail en mémoire).</td></tr>
+<tr><td>5</td><td><strong>Alertes inline ciblées</strong></td><td>Bandeaux non bloquants sur les points d'attention (pièce d'identité requise au-dessus du seuil, etc.), sans modale rigide.</td></tr>
+<tr><td>6</td><td><strong>Jauge de complétion</strong></td><td>Barre de progression + <em>prochaine étape</em>, calée sur le niveau de vigilance ; ne compte que des éléments <em>observables</em> (jamais une pièce hors-outil supposée obtenue).</td></tr>
+<tr><td>7</td><td><strong>Autocomplétion locale</strong></td><td><code>datalist</code> alimenté par les valeurs déjà vues dans le coffre (artistes, nationalités, pays, techniques…) + pré-remplissage galerie / signataire. Aucune source externe.</td></tr>
+<tr><td>8</td><td><strong>Filigrane &amp; signature</strong></td><td>Filigrane <em>indélébile</em> incrusté dans les pixels de la pièce (canvas local) ; pavé de signature manuscrite joint au rapport PDF. 100 % sur l'appareil.</td></tr>
+<tr><td>9</td><td><strong>Antécédents inter-dossiers</strong></td><td>Recherche floue (Levenshtein, sans accents, ordre des mots libre) d'un acteur / d'une œuvre déjà évalués ; <em>propose</em> le réimport, ne fusionne jamais d'office.</td></tr>
+<tr><td>10</td><td><strong>Horodatage RFC 3161</strong></td><td>Requête <code>TimeStampReq</code> (DER) vers une TSA qualifiée. <strong>Opt-in, off par défaut</strong> ; seule l'empreinte SHA-256 sort ; jeton conservé au coffre et joint au PDF.</td></tr>
+<tr><td>11</td><td><strong>Cascade UBO assistée</strong></td><td>L'OCR d'un Kbis / de statuts <em>propose</em> des bénéficiaires (nom, part) ; l'humain contrôle chaque nœud (personne / entité) avant screening. Aucun détenteur inventé.</td></tr>
+<tr><td>12</td><td><strong>Relance mailto pré-remplie</strong></td><td>Courrier neutre justifié LCB-FT (objet + corps), ouvert dans la messagerie du galeriste. L'outil n'envoie rien (déjà présent, confirmé).</td></tr>
+<tr><td>13</td><td><strong>Mode saisie rapide « foire »</strong></td><td>Écran mobile / hors-ligne : identité sommaire, œuvre, montant, photo de la pièce → <em>évaluation primaire</em> locale. Dossier enregistré « à finaliser » (screening &amp; décision au retour).</td></tr>
+</tbody></table>
+
+<figure>
+  <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Mode saisie rapide — foire / exposition</div>
+  <div class="shotwrap"><img src="./assets/11-foire.png" alt="Écran de saisie rapide en mode foire"></div>
+  <figcaption><b>Saisie rapide.</b> Un écran épuré, adapté au tactile et au hors-ligne. Une alerte inline rappelle
+  qu'au-dessus du seuil la pièce d'identité sera requise pour finaliser. À l'enregistrement, une <b>évaluation
+  primaire</b> (explicitement non probante, car le screening n'est pas fait) est affichée, et le dossier rejoint
+  l'historique avec le badge « À finaliser ».</figcaption>
+</figure>
+
+<figure class="tall">
+  <div class="frame"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; Module Acteur — jauge de complétion &amp; bascule <span class="scroll-hint">· faites défiler</span></div>
+  <div class="shotwrap"><img src="./assets/12-jauge-bascule.png" alt="Module acteur avec la jauge de complétion et le bouton de bascule"></div>
+  <figcaption><b>Jauge &amp; bascule.</b> Sous le formulaire, la <b>jauge de complétion</b> (« 60 % · Prochaine
+  étape : Date de naissance ») guide la saisie ; le champ Nationalité propose des valeurs déjà enregistrées
+  (autocomplétion). Le bouton « <b>Utiliser dans une transaction →</b> » reprend l'acteur sans re-saisie.</figcaption>
+</figure>
+
+<div class="note ok"><span class="lbl">Bilan : ergonomie sans compromis</span>
+Les 13 fonctionnalités préservent les quatre invariants — <em>tout-local / zéro cloud</em> (à la seule exception,
+explicite et désactivée par défaut, de l'empreinte d'horodatage), <em>registres honnêtes</em>, <em>aucune analyse
+d'image</em>, <em>revue humaine obligatoire</em> (OCR &amp; UBO restent assistés et validés par l'humain).
+Couverture : <strong>+39 tests unitaires</strong> et <strong>+2 parcours E2E</strong>.</div>
 
 <div class="foot">
   <strong>Provenance</strong> — dossier technique &amp; fonctionnel · mis à jour le 2026-08-12.<br>
