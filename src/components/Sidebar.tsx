@@ -13,6 +13,7 @@ const TABS = [
   { href: "/acteur", label: "Acteur", hint: "Personne · entité" },
   { href: "/oeuvre", label: "Œuvre", hint: "Provenance" },
   { href: "/transaction", label: "Transaction", hint: "Dossier complet" },
+  { href: "/foire", label: "Saisie rapide", hint: "Foire · mobile · hors-ligne" },
   { href: "/historique", label: "Historique Local", hint: "Dossiers clôturés" },
   { href: "/parametres", label: "Paramètres", hint: "Clé API · confidentialité" },
 ];

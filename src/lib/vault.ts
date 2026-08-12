@@ -60,6 +60,9 @@ interface VaultBlob {
 export interface VaultContent {
   settings: Settings;
   history: Dossier[];
+  // Brouillons de saisie en cours (auto-save chiffré, #2). Optionnel : absent des
+  // coffres antérieurs.
+  drafts?: Record<string, unknown>;
 }
 
 /** Erreur de stockage plein (quota dépassé). */

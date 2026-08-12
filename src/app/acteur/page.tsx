@@ -5,8 +5,9 @@
   approche des risques : par défaut vigilance simplifiée, aucune pièce intrusive.
 */
 
-import { useEffect, useState } from "react";
-import { Button, Card, RiskBadge, SectionTitle, SubScores, TierBadge } from "@/components/ui";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button, Card, InlineAlert, ProgressGauge, RiskBadge, SectionTitle, SubScores, TierBadge } from "@/components/ui";
 import { ActorForm } from "@/components/ActorForm";
 import { ScreeningResultCard } from "@/components/ScreeningResultCard";
 import { CollectionPanel } from "@/components/CollectionPanel";
@@ -17,11 +18,14 @@ import {
   subjectFromActor,
 } from "@/lib/screening";
 import { assessActor } from "@/lib/scoring";
+import { actorCompletion } from "@/lib/completion";
 import { appendEvent, buildTrail } from "@/lib/audit";
 import { classifyMatches } from "@/lib/classify";
 import { emptyActor, newId } from "@/lib/factories";
-import { loadHistory, loadSettings } from "@/lib/storage";
+import { clearDraft, loadDraft, loadHistory, loadSettings } from "@/lib/storage";
+import { useAutosave } from "@/lib/useAutosave";
 import { takeReopen } from "@/lib/reopen";
+import { setWorkbench } from "@/lib/workbench";
 import type {
   Actor,
   ActorDossier,
@@ -30,11 +34,27 @@ import type {
   Settings,
 } from "@/lib/types";
 
+const DRAFT_KEY = "acteur";
+const PREVIEW_SCREENING: ScreeningResult = {
+  sujet: "",
+  status: "clear",
+  matches: [],
+  listesInterrogees: [],
+  fournisseur: "",
+  horodatage: "",
+  desambiguise: false,
+};
+
 export default function ActeurPage() {
-  const [actor, setActor] = useState<Actor>(() => emptyActor("acheteur"));
+  const router = useRouter();
+  const [actor, setActor] = useState<Actor>(
+    () => loadDraft<Actor>(DRAFT_KEY) ?? emptyActor("acheteur"),
+  );
   const [running, setRunning] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [result, setResult] = useState<ActorDossier | null>(null);
+
+  useAutosave(DRAFT_KEY, actor, !result);
 
   useEffect(() => {
     setSettings(loadSettings());
@@ -47,6 +67,19 @@ export default function ActeurPage() {
       }
     }
   }, []);
+
+  // Jauge de complétion en direct (#6) — prévisualisation sans screening.
+  const completion = useMemo(
+    () =>
+      actorCompletion(
+        actor,
+        assessActor(actor, PREVIEW_SCREENING, [], {
+          seuilVigilanceEur: settings?.seuilVigilanceEur ?? 10000,
+          montantEur: null,
+        }),
+      ),
+    [actor, settings],
+  );
 
   const hasKey = !!settings?.apiKey;
   // Pièce d'identité obligatoire pour créer le dossier si la case acheteur est cochée.
@@ -107,6 +140,13 @@ export default function ActeurPage() {
   function reset() {
     setActor(emptyActor("acheteur"));
     setResult(null);
+    clearDraft(DRAFT_KEY);
+  }
+
+  // #4 — envoyer l'acteur en cours vers le module Transaction, sans re-saisie.
+  function versTransaction() {
+    setWorkbench({ actor });
+    router.push("/transaction");
   }
 
   // Faux positifs : écarter/rétablir une correspondance recalcule la synthèse
@@ -171,22 +211,34 @@ export default function ActeurPage() {
           onChange={setActor}
           seuilEur={settings?.seuilVigilanceEur ?? 10000}
         />
+        {!result && (
+          <div className="mt-6 border-t border-line pt-4">
+            <ProgressGauge pct={completion.pct} nextStep={completion.nextStep} />
+          </div>
+        )}
       </Card>
 
-      <div className="mt-6 flex items-center gap-4">
+      {idManquante && (
+        <div className="mt-4">
+          <InlineAlert tone="danger">
+            Pièce d'identité obligatoire pour une transaction au-dessus du seuil —
+            ajoutez-la pour créer le dossier.
+          </InlineAlert>
+        </div>
+      )}
+
+      <div className="mt-6 flex flex-wrap items-center gap-3">
         <Button onClick={lancer} disabled={!canRun || running}>
           {running ? "Analyse en cours…" : "Créer le dossier client"}
         </Button>
-        {idManquante ? (
-          <span className="text-[0.72rem] text-risk-high">
-            Pièce d'identité obligatoire pour une transaction au-dessus du seuil —
-            ajoutez-la pour créer le dossier.
-          </span>
-        ) : actor.nom.trim().length === 0 ? (
+        <Button variant="ghost" onClick={versTransaction} disabled={actor.nom.trim().length === 0}>
+          Utiliser dans une transaction →
+        </Button>
+        {actor.nom.trim().length === 0 && (
           <span className="text-[0.72rem] text-muted">
             Renseignez au moins le nom / la raison sociale.
           </span>
-        ) : null}
+        )}
       </div>
 
       {result && settings && (

@@ -8,14 +8,51 @@
   FACULTATIFS.
 */
 
-import { useState } from "react";
-import { Field, SectionTitle } from "@/components/ui";
+import { useMemo, useState } from "react";
+import { Field, AutoField, InlineAlert, SectionTitle } from "@/components/ui";
 import { AuditList } from "@/components/AuditList";
 import { ImageDropzone } from "@/components/ImageDropzone";
 import { BeneficiaryEditor } from "@/components/BeneficiaryEditor";
 import { emptyBeneficiary } from "@/lib/factories";
-import { runOcr, parseIdentityText, parseEntityText } from "@/lib/ocr";
-import type { Actor, ActorKind, ActorRole } from "@/lib/types";
+import { runOcr, parseIdentityText, parseEntityText, parseBeneficiaries } from "@/lib/ocr";
+import { applyWatermark, watermarkLabel } from "@/lib/watermark";
+import { searchActors } from "@/lib/antecedents";
+import { suggest } from "@/lib/suggestions";
+import { loadHistory, loadSettings } from "@/lib/storage";
+import type { Actor, ActorKind, ActorRole, BeneficialOwner } from "@/lib/types";
+
+/**
+ * Antécédent inter-dossiers (#9) : signale un profil PROCHE déjà évalué et
+ * propose de le réimporter. On ne fusionne jamais d'office — l'humain reconnaît.
+ */
+function AntecedentHint({
+  query,
+  onReuse,
+}: {
+  query: string;
+  onReuse: (a: Actor) => void;
+}) {
+  const history = useMemo(() => loadHistory(), []);
+  const matches = useMemo(() => searchActors(history, query, { limit: 1 }), [history, query]);
+  if (!matches.length) return null;
+  const m = matches[0];
+  return (
+    <div className="col-span-2 -mt-2">
+      <InlineAlert tone="info">
+        Profil proche déjà au dossier : <strong>{m.nom}</strong>
+        {m.role ? ` (${m.role})` : ""} —{" "}
+        {new Date(m.date).toLocaleDateString("fr-FR")}.{" "}
+        <button
+          type="button"
+          onClick={() => onReuse(m.actor)}
+          className="font-medium underline underline-offset-2"
+        >
+          Réutiliser ce profil
+        </button>
+      </InlineAlert>
+    </div>
+  );
+}
 
 const ROLE_LABEL: Record<ActorRole, string> = {
   acheteur: "Acheteur",
@@ -34,13 +71,16 @@ function OcrAssist({
   dataUrl,
   kind,
   onApply,
+  onApplyBeneficiaires,
 }: {
   dataUrl: string;
   kind: ActorKind;
   onApply: (patch: Partial<Actor>) => void;
+  onApplyBeneficiaires?: (bens: BeneficialOwner[]) => void;
 }) {
   const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
   const [rows, setRows] = useState<OcrRow[]>([]);
+  const [bens, setBens] = useState<{ nom: string; prenoms: string; pourcentage: string }[]>([]);
 
   async function analyse() {
     setState("running");
@@ -60,6 +100,7 @@ function OcrAssist({
         if (c.nom) out.push({ key: "nom", label: "Raison sociale", value: c.nom });
         if (c.immatriculation)
           out.push({ key: "immatriculation", label: "Immatriculation", value: c.immatriculation });
+        setBens(parseBeneficiaries(text));
       }
       setRows(out);
       setState("done");
@@ -67,6 +108,14 @@ function OcrAssist({
       setState("error");
     }
   }
+
+  const toBeneficiary = (b: { nom: string; prenoms: string; pourcentage: string }): BeneficialOwner => ({
+    ...emptyBeneficiary(),
+    kind: "personne",
+    nom: b.nom,
+    prenoms: b.prenoms,
+    pourcentage: b.pourcentage,
+  });
 
   const setRow = (i: number, value: string) =>
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, value } : r)));
@@ -131,6 +180,40 @@ function OcrAssist({
           </button>
         </div>
       )}
+      {onApplyBeneficiaires && bens.length > 0 && (
+        <div className="mt-4 border-t border-line pt-3">
+          <div className="label-eyebrow mb-1 text-gold">
+            Bénéficiaires effectifs proposés ({bens.length})
+          </div>
+          <p className="mb-2 text-[0.7rem] leading-relaxed text-muted">
+            Cascade <strong>proposée</strong> à partir du document. Contrôlez chaque
+            nœud (personne / entité, part) avant tout screening.
+          </p>
+          <div className="space-y-1.5">
+            {bens.map((b, i) => (
+              <div key={i} className="flex items-center gap-2 text-[0.76rem]">
+                <span className="flex-1 text-ink-soft">
+                  {[b.prenoms, b.nom].filter(Boolean).join(" ")} — {b.pourcentage} %
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onApplyBeneficiaires([toBeneficiary(b)])}
+                  className="shrink-0 rounded-md border border-line px-2.5 py-1 text-[0.72rem] text-ink-soft hover:border-gold hover:text-gold"
+                >
+                  Ajouter
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => onApplyBeneficiaires(bens.map(toBeneficiary))}
+              className="text-[0.72rem] font-medium text-gold underline-offset-2 hover:underline"
+            >
+              Tout ajouter à la cascade
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -178,6 +261,30 @@ export function ActorForm({
   seuilEur?: number;
 }) {
   const set = (patch: Partial<Actor>) => onChange({ ...actor, ...patch });
+  const addBeneficiaires = (bens: BeneficialOwner[]) =>
+    set({ beneficiaires: [...actor.beneficiaires, ...bens] });
+
+  const history = useMemo(() => loadHistory(), []);
+  const natSugg = useMemo(() => suggest(history, "nationalite"), [history]);
+  const paysSugg = useMemo(() => suggest(history, "pays"), [history]);
+  const formeSugg = useMemo(() => suggest(history, "formeJuridique"), [history]);
+
+  // Filigranage indélébile de la pièce, en local (#8).
+  const [filigrane, setFiligrane] = useState<"idle" | "busy" | "done">("idle");
+  async function filigraner() {
+    if (!actor.pieceIdentiteDoc) return;
+    setFiligrane("busy");
+    try {
+      const label = watermarkLabel(loadSettings().nomGalerie, new Date().toISOString());
+      const wm = await applyWatermark(actor.pieceIdentiteDoc, label);
+      set({ pieceIdentiteDoc: wm });
+      setFiligrane("done");
+    } catch {
+      setFiligrane("idle");
+    }
+  }
+
+  const reuse = (a: Actor) => onChange({ ...a, role: actor.role });
 
   return (
     <div>
@@ -223,6 +330,7 @@ export function ActorForm({
             onChange={(e) => set({ prenoms: e.target.value })}
             placeholder="Marie Claire"
           />
+          <AntecedentHint query={[actor.prenoms, actor.nom].filter(Boolean).join(" ")} onReuse={reuse} />
           <Field
             label="Date de naissance"
             type="date"
@@ -230,18 +338,20 @@ export function ActorForm({
             onChange={(e) => set({ dateNaissance: e.target.value })}
             hint="Sert à désambiguïser le screening — pas une question au client."
           />
-          <Field
+          <AutoField
             label="Nationalité"
             value={actor.nationalite}
             onChange={(e) => set({ nationalite: e.target.value })}
             placeholder="Française"
+            suggestions={natSugg}
           />
-          <Field
+          <AutoField
             label="Pays de résidence"
             value={actor.pays}
             onChange={(e) => set({ pays: e.target.value })}
             placeholder="France"
             hint="Risque-pays GAFI dérivé automatiquement."
+            suggestions={paysSugg}
           />
           <Field
             label="N° pièce d'identité (si déjà connu)"
@@ -258,11 +368,13 @@ export function ActorForm({
             onChange={(e) => set({ nom: e.target.value })}
             placeholder="ArtHolding SARL"
           />
-          <Field
+          <AntecedentHint query={actor.nom} onReuse={reuse} />
+          <AutoField
             label="Forme juridique"
             value={actor.formeJuridique}
             onChange={(e) => set({ formeJuridique: e.target.value })}
             placeholder="SARL, SA, Fondation, Trust…"
+            suggestions={formeSugg}
           />
           <Field
             label="N° d'immatriculation"
@@ -270,12 +382,13 @@ export function ActorForm({
             onChange={(e) => set({ immatriculation: e.target.value })}
             placeholder="SIREN / RCS / equiv."
           />
-          <Field
+          <AutoField
             label="Juridiction"
             value={actor.pays}
             onChange={(e) => set({ pays: e.target.value })}
             placeholder="France"
             hint="Risque-pays GAFI dérivé automatiquement."
+            suggestions={paysSugg}
           />
         </div>
       )}
@@ -315,7 +428,24 @@ export function ActorForm({
                 }
               />
               {actor.pieceIdentiteDoc && (
-                <OcrAssist dataUrl={actor.pieceIdentiteDoc} kind={actor.kind} onApply={set} />
+                <>
+                  <OcrAssist dataUrl={actor.pieceIdentiteDoc} kind={actor.kind} onApply={set} />
+                  <div className="mt-3 flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={filigraner}
+                      disabled={filigrane === "busy"}
+                      className="rounded-md border border-line px-3 py-1.5 text-[0.74rem] text-ink-soft hover:border-gold hover:text-gold disabled:opacity-50"
+                    >
+                      {filigrane === "busy" ? "Filigranage…" : "Filigraner la pièce ⚑"}
+                    </button>
+                    <span className="text-[0.7rem] text-muted">
+                      {filigrane === "done"
+                        ? "Filigrane appliqué (incrusté, local)."
+                        : "Incruste « Due Diligence LCB-FT » dans l'image, sur cet appareil."}
+                    </span>
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -342,6 +472,25 @@ export function ActorForm({
             CJUE de novembre 2022 : déclarez ici ce qui est connu. Une entité sans
             bénéficiaire déclaré est traitée comme un point de transparence.
           </p>
+          <div className="mb-3 rounded-md border border-line bg-surface-2 p-3">
+            <ImageDropzone
+              label="Document sociétaire (Kbis, statuts, déclaration DBE)"
+              hint="Reste sur cet appareil · propose une cascade UBO à valider"
+              value={actor.pieceIdentiteDoc}
+              fileName={actor.pieceIdentiteDocNom}
+              onChange={(dataUrl, name) =>
+                set({ pieceIdentiteDoc: dataUrl, pieceIdentiteDocNom: name })
+              }
+            />
+            {actor.pieceIdentiteDoc && (
+              <OcrAssist
+                dataUrl={actor.pieceIdentiteDoc}
+                kind={actor.kind}
+                onApply={set}
+                onApplyBeneficiaires={addBeneficiaires}
+              />
+            )}
+          </div>
           {actor.beneficiaires.length === 0 ? (
             <div className="rounded-md border border-dashed border-line-strong bg-surface-2 px-4 py-3 text-[0.74rem] text-muted">
               Aucun bénéficiaire effectif déclaré.

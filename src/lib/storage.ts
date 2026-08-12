@@ -78,3 +78,36 @@ export async function clearHistory(): Promise<void> {
   c.history = [];
   await persist();
 }
+
+/* ── Brouillons (auto-save chiffré, #2) ─────────────────────────────── */
+
+/** Lit un brouillon de saisie en cours (null si aucun). */
+export function loadDraft<T>(key: string): T | null {
+  const c = getContent();
+  return (c?.drafts?.[key] as T | undefined) ?? null;
+}
+
+let draftTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Enregistre un brouillon dans le coffre chiffré, avec anti-rebond (600 ms) pour
+ * ne pas re-chiffrer à chaque frappe. Silencieux : les échecs (quota) sont
+ * absorbés — le brouillon est un confort, pas la source de vérité.
+ */
+export function saveDraftDebounced(key: string, value: unknown): void {
+  const c = getContent();
+  if (!c) return;
+  c.drafts = { ...(c.drafts ?? {}), [key]: value };
+  if (draftTimer) clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => {
+    persist().catch(() => {});
+  }, 600);
+}
+
+/** Efface un brouillon (dossier créé, réinitialisation). */
+export async function clearDraft(key: string): Promise<void> {
+  const c = getContent();
+  if (!c?.drafts || !(key in c.drafts)) return;
+  delete c.drafts[key];
+  await persist();
+}

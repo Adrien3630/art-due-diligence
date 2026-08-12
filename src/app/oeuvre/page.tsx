@@ -5,21 +5,32 @@
   documentée, registres vol/spoliation, authenticité & titre.
 */
 
-import { useEffect, useState } from "react";
-import { Button, Card, RiskBadge, SectionTitle, SubScores } from "@/components/ui";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button, Card, ProgressGauge, RiskBadge, SectionTitle, SubScores } from "@/components/ui";
 import { ArtworkForm } from "@/components/ArtworkForm";
 import { CompliancePanel } from "@/components/CompliancePanel";
 import { assessArtwork } from "@/lib/scoring";
+import { artworkCompletion } from "@/lib/completion";
 import { buildTrail } from "@/lib/audit";
 import { emptyArtwork, newId } from "@/lib/factories";
-import { loadHistory, loadSettings } from "@/lib/storage";
+import { clearDraft, loadDraft, loadHistory, loadSettings } from "@/lib/storage";
+import { useAutosave } from "@/lib/useAutosave";
 import { takeReopen } from "@/lib/reopen";
+import { setWorkbench } from "@/lib/workbench";
 import type { Artwork, ArtworkDossier, Settings } from "@/lib/types";
 
+const DRAFT_KEY = "oeuvre";
+
 export default function OeuvrePage() {
-  const [artwork, setArtwork] = useState<Artwork>(() => emptyArtwork());
+  const router = useRouter();
+  const [artwork, setArtwork] = useState<Artwork>(
+    () => loadDraft<Artwork>(DRAFT_KEY) ?? emptyArtwork(),
+  );
   const [settings, setSettings] = useState<Settings | null>(null);
   const [result, setResult] = useState<ArtworkDossier | null>(null);
+
+  useAutosave(DRAFT_KEY, artwork, !result);
 
   useEffect(() => {
     setSettings(loadSettings());
@@ -33,6 +44,7 @@ export default function OeuvrePage() {
     }
   }, []);
 
+  const completion = useMemo(() => artworkCompletion(artwork), [artwork]);
   const canRun = artwork.titre.trim().length > 0 || artwork.artiste.trim().length > 0;
 
   async function lancer() {
@@ -61,6 +73,13 @@ export default function OeuvrePage() {
   function reset() {
     setArtwork(emptyArtwork());
     setResult(null);
+    clearDraft(DRAFT_KEY);
+  }
+
+  // #4 — envoyer l'œuvre en cours vers le module Transaction, sans re-saisie.
+  function versTransaction() {
+    setWorkbench({ artwork });
+    router.push("/transaction");
   }
 
   return (
@@ -76,11 +95,19 @@ export default function OeuvrePage() {
 
       <Card>
         <ArtworkForm artwork={artwork} onChange={setArtwork} />
+        {!result && (
+          <div className="mt-6 border-t border-line pt-4">
+            <ProgressGauge pct={completion.pct} nextStep={completion.nextStep} />
+          </div>
+        )}
       </Card>
 
-      <div className="mt-6 flex items-center gap-4">
+      <div className="mt-6 flex flex-wrap items-center gap-3">
         <Button onClick={lancer} disabled={!canRun}>
           Lancer la vigilance
+        </Button>
+        <Button variant="ghost" onClick={versTransaction} disabled={!canRun}>
+          Utiliser dans une transaction →
         </Button>
         {!canRun && (
           <span className="text-[0.72rem] text-muted">

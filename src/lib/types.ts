@@ -302,6 +302,8 @@ export interface HumanDecision {
   motif: string;
   signataire: string;
   horodatage: string; // ISO
+  // Signature manuscrite locale (data-URL PNG), optionnelle (#8).
+  signatureDataUrl?: string;
 }
 
 /* ───────────────────────── Dossiers (historique) ───────────────────────── */
@@ -321,6 +323,9 @@ interface DossierBase {
   // Horodatage qualifié RFC 3161 de l'empreinte du dossier (optionnel, cf.
   // Settings.horodatageActif). Absent tant que non sollicité.
   horodatage?: TimestampProof;
+  // Saisie rapide « foire » (#13) : dossier ébauché en mobilité, à compléter au
+  // retour (screening, pièces, décision).
+  aFinaliser?: boolean;
 }
 
 /** Jeton d'horodatage RFC 3161 conservé (miroir de lib/timestamp.TimestampToken). */

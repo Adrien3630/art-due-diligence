@@ -164,6 +164,142 @@ export const STATUS_PILL: Record<
   demo: { label: "Démonstration", color: "var(--color-muted)", bg: "var(--color-surface-2)" },
 };
 
+/**
+ * Champ texte avec suggestions locales (datalist natif). Les valeurs viennent du
+ * coffre de l'utilisateur — pur confort de saisie, aucune source externe (#7).
+ */
+export function AutoField({
+  label,
+  hint,
+  suggestions = [],
+  ...props
+}: {
+  label: string;
+  hint?: string;
+  suggestions?: string[];
+} & InputHTMLAttributes<HTMLInputElement>) {
+  const listId = `sugg-${label.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
+  return (
+    <label className="block">
+      <span className="label-eyebrow block mb-1.5">{label}</span>
+      <input className="input-line" list={suggestions.length ? listId : undefined} {...props} />
+      {suggestions.length > 0 && (
+        <datalist id={listId}>
+          {suggestions.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+      )}
+      {hint && <span className="mt-1 block text-[0.68rem] text-muted">{hint}</span>}
+    </label>
+  );
+}
+
+/**
+ * Jauge de complétion (#6). Barre + pourcentage + prochaine étape éventuelle.
+ * Couleur graduée : rouge < 50 %, orange < 100 %, vert à 100 %.
+ */
+export function ProgressGauge({
+  pct,
+  nextStep,
+  label = "Complétion du dossier",
+}: {
+  pct: number;
+  nextStep?: string | null;
+  label?: string;
+}) {
+  const color =
+    pct >= 100
+      ? "var(--color-risk-low)"
+      : pct >= 50
+        ? "var(--color-risk-mid)"
+        : "var(--color-risk-high)";
+  return (
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between">
+        <span className="label-eyebrow">{label}</span>
+        <span className="text-sm font-medium" style={{ color }}>
+          {pct}%
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+      </div>
+      {nextStep && pct < 100 && (
+        <p className="mt-1.5 text-[0.72rem] text-muted">
+          Prochaine étape : <span className="text-ink-soft">{nextStep}</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Alerte inline non-bloquante, ciblée (#5). */
+export function InlineAlert({
+  tone = "warn",
+  children,
+}: {
+  tone?: "warn" | "info" | "danger";
+  children: ReactNode;
+}) {
+  const meta =
+    tone === "danger"
+      ? { color: "var(--color-risk-high)", bg: "var(--color-risk-high-bg)" }
+      : tone === "info"
+        ? { color: "var(--color-risk-low)", bg: "var(--color-risk-low-bg)" }
+        : { color: "var(--color-risk-mid)", bg: "var(--color-risk-mid-bg)" };
+  return (
+    <div
+      className="flex items-start gap-2 rounded-md px-3 py-2 text-[0.76rem] leading-snug"
+      style={{ color: meta.color, background: meta.bg }}
+      role="status"
+    >
+      <span aria-hidden>▲</span>
+      <span>{children}</span>
+    </div>
+  );
+}
+
+/** Modale légère (overlay plein écran). Rendue par un composant client (#3). */
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  wide = false,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-ink/40 p-4 sm:p-8"
+      onClick={onClose}
+    >
+      <div
+        className={`w-full ${wide ? "max-w-5xl" : "max-w-2xl"} rounded-lg border border-line bg-surface shadow-lg`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-line px-6 py-4">
+          <h2 className="font-serif text-lg text-ink">{title}</h2>
+          <button
+            onClick={onClose}
+            className="rounded-md px-2 py-1 text-muted hover:text-ink"
+            aria-label="Fermer"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="p-6">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 /** Select libellé, même grammaire visuelle que Field. */
 export function SelectField({
   label,

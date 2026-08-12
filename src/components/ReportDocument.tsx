@@ -10,6 +10,7 @@
   • Rappel systématique : décision humaine, aide à la vigilance, pas de garantie.
 */
 
+import { useEffect, useState } from "react";
 import {
   Document,
   Page,
@@ -193,11 +194,15 @@ function Disclaimer({ extra }: { extra?: string }) {
   );
 }
 
-function Signature({ date }: { date: string }) {
+function Signature({ date, signatureDataUrl }: { date: string; signatureDataUrl?: string }) {
   return (
     <View style={s.sigRow}>
       <View style={s.sigBox}>
         <Text style={s.eyebrow}>Établi par</Text>
+        {signatureDataUrl ? (
+          // eslint-disable-next-line jsx-a11y/alt-text
+          <Image src={signatureDataUrl} style={{ height: 46, objectFit: "contain", marginTop: 6 }} />
+        ) : null}
         <Text style={s.sigLine}>Nom, qualité et signature</Text>
       </View>
       <View style={s.sigBox}>
@@ -250,6 +255,16 @@ function ComplianceSection({ dossier }: { dossier: Dossier }) {
           </View>
         ))}
       </View>
+      {dossier.horodatage ? (
+        <View>
+          <Text style={s.eyebrow}>Horodatage qualifié RFC 3161</Text>
+          <Text style={{ fontSize: 8, color: "#8d8678", marginBottom: 8 }}>
+            Empreinte SHA-256 : {dossier.horodatage.hashHex.slice(0, 32)}… · TSA :{" "}
+            {dossier.horodatage.tsaUrl} · {new Date(dossier.horodatage.obtenuLe).toLocaleString("fr-FR")}.
+            Jeton conservé au coffre, vérifiable via un outil RFC 3161 standard.
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -427,7 +442,7 @@ function ActorReport({ dossier }: { dossier: ActorDossier }) {
         <Factors facteurs={dossier.assessment.facteurs} />
         <ComplianceSection dossier={dossier} />
         <Disclaimer />
-        <Signature date={date} />
+        <Signature date={date} signatureDataUrl={dossier.decision?.signatureDataUrl} />
         <Footer />
       </Page>
     </Document>
@@ -454,7 +469,7 @@ function ArtworkReport({ dossier }: { dossier: ArtworkDossier }) {
         <Factors facteurs={dossier.assessment.facteurs} />
         <ComplianceSection dossier={dossier} />
         <Disclaimer />
-        <Signature date={date} />
+        <Signature date={date} signatureDataUrl={dossier.decision?.signatureDataUrl} />
         <Footer />
       </Page>
     </Document>
@@ -538,7 +553,7 @@ function TransactionReport({ dossier }: { dossier: TransactionDossier }) {
 
         <ComplianceSection dossier={dossier} />
         <Disclaimer />
-        <Signature date={date} />
+        <Signature date={date} signatureDataUrl={dossier.decision?.signatureDataUrl} />
         <Footer />
       </Page>
     </Document>
@@ -576,4 +591,76 @@ export async function downloadReport(dossier: Dossier): Promise<void> {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Aperçu PDF « 1 clic » en modale (#3) : génère le blob localement et l'affiche
+ * dans un <iframe>, avec téléchargement direct. Aucune donnée ne sort ; le blob
+ * est révoqué à la fermeture.
+ */
+export function ReportPreviewModal({
+  dossier,
+  open,
+  onClose,
+}: {
+  dossier: Dossier;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let revoked: string | null = null;
+    setUrl(null);
+    setError(false);
+    pdf(<ReportDocument dossier={dossier} />)
+      .toBlob()
+      .then((blob) => {
+        revoked = URL.createObjectURL(blob);
+        setUrl(revoked);
+      })
+      .catch(() => setError(true));
+    return () => {
+      if (revoked) URL.revokeObjectURL(revoked);
+    };
+  }, [open, dossier]);
+
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 sm:p-8"
+      onClick={onClose}
+    >
+      <div
+        className="flex h-full w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-line px-6 py-3">
+          <h2 className="font-serif text-lg text-ink">Rapport PDF</h2>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => downloadReport(dossier)}
+              className="rounded-md border border-line px-3 py-1.5 text-[0.78rem] text-ink-soft hover:border-gold hover:text-gold"
+            >
+              Télécharger
+            </button>
+            <button onClick={onClose} className="px-2 py-1 text-muted hover:text-ink" aria-label="Fermer">
+              ✕
+            </button>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 bg-surface-2">
+          {error ? (
+            <div className="p-6 text-sm text-risk-high">Génération du PDF impossible.</div>
+          ) : url ? (
+            <iframe src={url} title="Aperçu du rapport" className="h-full w-full" />
+          ) : (
+            <div className="p-6 text-sm text-muted">Génération du rapport…</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
