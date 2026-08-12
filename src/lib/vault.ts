@@ -1,32 +1,39 @@
 /*
-  Coffre chiffré — état au repos protégé par une phrase secrète.
+  Coffre chiffré — v2 (chiffrement par enveloppe).
 
-  Tout l'historique et les réglages (clés API comprises) sont chiffrés en un seul
-  blob AES-GCM, persisté via IndexedDB (repli localStorage hors navigateur). La
-  clé dérivée ne vit qu'en mémoire, le temps de la session ; verrouiller la purge.
-  La phrase secrète n'est jamais stockée.
+  Le contenu ({settings, history, drafts}) est chiffré par une CLÉ DE DONNÉES (DK)
+  aléatoire. Cette DK est elle-même « emballée » (wrappée) DEUX fois :
+   • sous une clé dérivée de la PHRASE SECRÈTE (Argon2id, memory-hard) ;
+   • sous une clé dérivée d'une CLÉ DE RÉCUPÉRATION (haute entropie, à imprimer).
 
-  Stratégie pour ne pas casser les appelants synchrones : après déverrouillage, le
-  contenu déchiffré est tenu en CACHE mémoire ; `storage.ts` le lit de façon
-  synchrone, et les écritures re-chiffrent + persistent (asynchrone).
+  Conséquences :
+   • oublier la phrase ne perd plus tout → la clé de récupération rouvre le coffre
+     (on découple récupération et mémorisation) ;
+   • changer de phrase ne re-chiffre PAS le contenu : on re-wrappe seulement la DK
+     (rapide), la DK et le contenu restent inchangés.
 
-  ⚠️ Si la phrase secrète est perdue, les données sont IRRÉCUPÉRABLES (par
-  conception). D'où l'export chiffré, à conserver hors-machine (rétention 5 ans).
+  Compatibilité : les coffres v1 (PBKDF2, clé dérivée chiffrant directement le
+  contenu) sont lus puis MIGRÉS en v2 au premier déverrouillage — une clé de
+  récupération est alors générée et présentée à l'utilisateur.
 
-  Migrations gérées :
-   • données en clair d'une version antérieure (provenance.*.v2/v3) → importées à
-     la création du coffre, puis supprimées ;
-   • coffre antérieur stocké dans localStorage → migré vers IndexedDB à la lecture.
+  ⚠️ Perte de la phrase ET de la clé de récupération = données irrécupérables.
 */
 
 import {
   deriveKey,
+  deriveKeyArgon2,
   decryptJson,
   encryptJson,
+  encryptBytes,
+  decryptBytes,
+  importDataKey,
+  generateRecoveryCode,
+  normalizeRecoveryCode,
   randomBytes,
   toBase64,
   fromBase64,
-  PBKDF2_ITERATIONS,
+  ARGON2_PARAMS,
+  type Argon2Params,
   type Sealed,
 } from "./crypto";
 import { kvGet, kvSet, usingIndexedDb } from "./idb";
@@ -51,18 +58,29 @@ export const DEFAULT_SETTINGS: Settings = {
   autoLockMinutes: 10,
 };
 
-interface VaultBlob {
+interface VaultBlobV1 {
   v: 1;
   salt: string; // base64
   iterations: number;
-  sealed: Sealed;
+  sealed: Sealed; // contenu chiffré directement par la clé PBKDF2
 }
+
+interface VaultBlobV2 {
+  v: 2;
+  kdf: "argon2id";
+  params: Argon2Params;
+  saltPass: string; // base64 — sel Argon2id (phrase)
+  wrapPass: Sealed; // DK emballée sous la clé « phrase »
+  saltRecovery: string; // base64 — sel Argon2id (clé de récupération)
+  wrapRecovery: Sealed; // DK emballée sous la clé « récupération »
+  sealed: Sealed; // contenu chiffré par la DK
+}
+
+type VaultBlob = VaultBlobV1 | VaultBlobV2;
 
 export interface VaultContent {
   settings: Settings;
   history: Dossier[];
-  // Brouillons de saisie en cours (auto-save chiffré, #2). Optionnel : absent des
-  // coffres antérieurs.
   drafts?: Record<string, unknown>;
 }
 
@@ -75,10 +93,18 @@ export class StorageFullError extends Error {
 }
 
 // ── État de session (mémoire seulement) ─────────────────────────────────
-let key: CryptoKey | null = null;
+interface V2Meta {
+  params: Argon2Params;
+  saltPass: string;
+  wrapPass: Sealed;
+  saltRecovery: string;
+  wrapRecovery: Sealed;
+}
+
+let dkKey: CryptoKey | null = null; // clé de données (chiffre le contenu)
+let dkBytes: Uint8Array | null = null; // DK brute (pour re-wrapper sur changement)
 let content: VaultContent | null = null;
-let saltB64: string | null = null;
-let iterations = PBKDF2_ITERATIONS;
+let meta: V2Meta | null = null;
 
 function canUseLocalStorage(): boolean {
   return typeof window !== "undefined" && !!window.localStorage;
@@ -122,7 +148,7 @@ export function hasLegacyData(): boolean {
 }
 
 export function isUnlocked(): boolean {
-  return content !== null && key !== null;
+  return content !== null && dkKey !== null;
 }
 
 export function getContent(): VaultContent | null {
@@ -156,11 +182,20 @@ function clearLegacy(): void {
   window.localStorage.removeItem(LEGACY_HISTORY);
 }
 
-/** Persiste le cache courant, chiffré. Lève StorageFullError si quota dépassé. */
+/** Persiste le cache courant (v2), chiffré. Lève StorageFullError si quota dépassé. */
 export async function persist(): Promise<void> {
-  if (!key || !content || !saltB64) return;
-  const sealed = await encryptJson(key, content);
-  const next: VaultBlob = { v: 1, salt: saltB64, iterations, sealed };
+  if (!dkKey || !content || !meta) return;
+  const sealed = await encryptJson(dkKey, content);
+  const next: VaultBlobV2 = {
+    v: 2,
+    kdf: "argon2id",
+    params: meta.params,
+    saltPass: meta.saltPass,
+    wrapPass: meta.wrapPass,
+    saltRecovery: meta.saltRecovery,
+    wrapRecovery: meta.wrapRecovery,
+    sealed,
+  };
   try {
     await kvSet(VAULT_KEY, JSON.stringify(next));
   } catch (err) {
@@ -171,42 +206,163 @@ export async function persist(): Promise<void> {
   }
 }
 
-/**
- * Crée le coffre avec une phrase secrète. Migre les données en clair existantes
- * puis les supprime. Déverrouille la session.
- */
-export async function createVault(passphrase: string): Promise<void> {
+/** Emballe la DK sous une phrase/clé donnée (Argon2id + AES-GCM). */
+async function wrapUnder(
+  secret: string,
+  params: Argon2Params,
+): Promise<{ salt: string; wrap: Sealed }> {
+  if (!dkBytes) throw new Error("Coffre verrouillé.");
   const salt = randomBytes(16);
-  saltB64 = toBase64(salt);
-  iterations = PBKDF2_ITERATIONS;
-  key = await deriveKey(passphrase, salt, iterations);
-  content = readLegacy();
-  await persist();
-  clearLegacy();
+  const kek = await deriveKeyArgon2(secret, salt, params);
+  const wrap = await encryptBytes(kek, dkBytes);
+  return { salt: toBase64(salt), wrap };
 }
 
-/** Déverrouille avec la phrase secrète. Renvoie false si elle est incorrecte. */
-export async function unlock(passphrase: string): Promise<boolean> {
+/** Installe une session v2 à partir d'une DK et d'un contenu. */
+function openSession(dk: Uint8Array, key: CryptoKey, c: VaultContent, m: V2Meta): void {
+  dkBytes = dk;
+  dkKey = key;
+  content = { settings: { ...DEFAULT_SETTINGS, ...c.settings }, history: c.history ?? [], drafts: c.drafts };
+  meta = m;
+}
+
+/**
+ * Crée le coffre (v2) avec une phrase secrète. Génère une CLÉ DE RÉCUPÉRATION
+ * (à présenter une seule fois). Migre les données en clair héritées.
+ */
+export async function createVault(passphrase: string): Promise<{ recoveryCode: string }> {
+  const dk = randomBytes(32);
+  const key = await importDataKey(dk);
+  dkBytes = dk;
+  const recoveryCode = generateRecoveryCode();
+
+  const p = await wrapUnder(passphrase, ARGON2_PARAMS);
+  const r = await wrapUnder(normalizeRecoveryCode(recoveryCode), ARGON2_PARAMS);
+
+  dkKey = key;
+  content = readLegacy();
+  meta = {
+    params: ARGON2_PARAMS,
+    saltPass: p.salt,
+    wrapPass: p.wrap,
+    saltRecovery: r.salt,
+    wrapRecovery: r.wrap,
+  };
+  await persist();
+  clearLegacy();
+  return { recoveryCode };
+}
+
+/**
+ * Déverrouille avec la phrase secrète. Renvoie `{ ok }`. Si un coffre v1 est
+ * rencontré, il est MIGRÉ en v2 et une clé de récupération est renvoyée
+ * (`recoveryCode`) pour affichage — à conserver.
+ */
+export async function unlock(
+  passphrase: string,
+): Promise<{ ok: boolean; recoveryCode?: string }> {
   const blob = await readBlob();
-  if (!blob) return false;
+  if (!blob) return { ok: false };
+
+  if (blob.v === 2) {
+    try {
+      const kek = await deriveKeyArgon2(passphrase, fromBase64(blob.saltPass), blob.params);
+      const dk = await decryptBytes(kek, blob.wrapPass);
+      const key = await importDataKey(dk);
+      const c = (await decryptJson(key, blob.sealed)) as VaultContent;
+      openSession(dk, key, c, {
+        params: blob.params,
+        saltPass: blob.saltPass,
+        wrapPass: blob.wrapPass,
+        saltRecovery: blob.saltRecovery,
+        wrapRecovery: blob.wrapRecovery,
+      });
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    }
+  }
+
+  // v1 → migration vers v2.
   try {
-    const k = await deriveKey(passphrase, fromBase64(blob.salt), blob.iterations);
-    const c = (await decryptJson(k, blob.sealed)) as VaultContent;
-    key = k;
-    saltB64 = blob.salt;
-    iterations = blob.iterations;
-    content = { settings: { ...DEFAULT_SETTINGS, ...c.settings }, history: c.history ?? [] };
+    const key1 = await deriveKey(passphrase, fromBase64(blob.salt), blob.iterations);
+    const c = (await decryptJson(key1, blob.sealed)) as VaultContent;
+    const recoveryCode = await migrateToV2(passphrase, c);
+    return { ok: true, recoveryCode };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/** Reconstruit un coffre v2 (nouvelle DK + clé de récupération) à partir d'un contenu déchiffré. */
+async function migrateToV2(passphrase: string, c: VaultContent): Promise<string> {
+  const dk = randomBytes(32);
+  dkBytes = dk;
+  const key = await importDataKey(dk);
+  const recoveryCode = generateRecoveryCode();
+  const p = await wrapUnder(passphrase, ARGON2_PARAMS);
+  const r = await wrapUnder(normalizeRecoveryCode(recoveryCode), ARGON2_PARAMS);
+  openSession(dk, key, c, {
+    params: ARGON2_PARAMS,
+    saltPass: p.salt,
+    wrapPass: p.wrap,
+    saltRecovery: r.salt,
+    wrapRecovery: r.wrap,
+  });
+  await persist();
+  return recoveryCode;
+}
+
+/** Déverrouille avec la clé de récupération (coffres v2 uniquement). */
+export async function unlockWithRecovery(code: string): Promise<boolean> {
+  const blob = await readBlob();
+  if (!blob || blob.v !== 2) return false;
+  try {
+    const kek = await deriveKeyArgon2(
+      normalizeRecoveryCode(code),
+      fromBase64(blob.saltRecovery),
+      blob.params,
+    );
+    const dk = await decryptBytes(kek, blob.wrapRecovery);
+    const key = await importDataKey(dk);
+    const c = (await decryptJson(key, blob.sealed)) as VaultContent;
+    openSession(dk, key, c, {
+      params: blob.params,
+      saltPass: blob.saltPass,
+      wrapPass: blob.wrapPass,
+      saltRecovery: blob.saltRecovery,
+      wrapRecovery: blob.wrapRecovery,
+    });
     return true;
   } catch {
     return false;
   }
 }
 
+/** Change la phrase secrète (re-wrappe la DK ; le contenu n'est pas re-chiffré). */
+export async function changePassphrase(newPassphrase: string): Promise<void> {
+  if (!meta || !dkBytes) throw new Error("Coffre verrouillé.");
+  const p = await wrapUnder(newPassphrase, meta.params);
+  meta = { ...meta, saltPass: p.salt, wrapPass: p.wrap };
+  await persist();
+}
+
+/** Régénère la clé de récupération (invalide l'ancienne). À présenter une fois. */
+export async function regenerateRecovery(): Promise<string> {
+  if (!meta || !dkBytes) throw new Error("Coffre verrouillé.");
+  const recoveryCode = generateRecoveryCode();
+  const r = await wrapUnder(normalizeRecoveryCode(recoveryCode), meta.params);
+  meta = { ...meta, saltRecovery: r.salt, wrapRecovery: r.wrap };
+  await persist();
+  return recoveryCode;
+}
+
 /** Purge la clé et le contenu déchiffré de la mémoire. */
 export function lock(): void {
-  key = null;
+  dkKey = null;
+  dkBytes = null;
   content = null;
-  saltB64 = null;
+  meta = null;
 }
 
 /** Renvoie le blob chiffré courant (pour export hors-machine). */
@@ -216,26 +372,19 @@ export async function exportBlob(): Promise<string | null> {
 
 /**
  * Importe un blob chiffré exporté, validé par la phrase secrète. Remplace le
- * coffre courant. Renvoie false si le format ou la phrase sont invalides.
+ * coffre courant. Gère les formats v1 (migré) et v2. Renvoie false si le format
+ * ou la phrase sont invalides.
  */
 export async function importBlob(blobJson: string, passphrase: string): Promise<boolean> {
   let blob: VaultBlob;
   try {
     blob = JSON.parse(blobJson) as VaultBlob;
-    if (blob.v !== 1 || !blob.salt || !blob.sealed) return false;
+    if (blob.v !== 1 && blob.v !== 2) return false;
   } catch {
     return false;
   }
-  try {
-    const k = await deriveKey(passphrase, fromBase64(blob.salt), blob.iterations);
-    const c = (await decryptJson(k, blob.sealed)) as VaultContent;
-    await kvSet(VAULT_KEY, blobJson);
-    key = k;
-    saltB64 = blob.salt;
-    iterations = blob.iterations;
-    content = { settings: { ...DEFAULT_SETTINGS, ...c.settings }, history: c.history ?? [] };
-    return true;
-  } catch {
-    return false;
-  }
+  // On écrit le blob importé, puis on le déverrouille via le chemin normal.
+  await kvSet(VAULT_KEY, blobJson);
+  const res = await unlock(passphrase);
+  return res.ok;
 }

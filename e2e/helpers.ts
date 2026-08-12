@@ -9,6 +9,8 @@ export async function unlockNew(page: Page): Promise<void> {
   await page.getByPlaceholder("Phrase secrète", { exact: true }).fill(PASS);
   await page.getByPlaceholder("Confirmer la phrase secrète").fill(PASS);
   await page.getByRole("button", { name: "Chiffrer et continuer" }).click();
+  // Écran de clé de récupération (coffre v2) → on confirme l'avoir notée.
+  await page.getByRole("button", { name: "J'ai noté ma clé — continuer" }).click();
   await expect(
     page.getByRole("heading", { name: "Que souhaitez-vous vérifier ?" }),
   ).toBeVisible();
